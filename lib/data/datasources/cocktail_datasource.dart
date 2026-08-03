@@ -1,4 +1,5 @@
 import '../../models/cocktail.dart';
+import '../../core/network/api_page.dart';
 
 /// 酒单数据源抽象。
 /// Mock（本地 assets）与 Remote（NestJS API）实现同一接口，
@@ -7,6 +8,9 @@ abstract class CocktailDataSource {
   /// 内置/官方酒单列表（可按基酒筛选，分页参数与后端契约一致）。
   Future<List<Cocktail>> getList(
       {String? spirit, int page = 1, int limit = 50});
+
+  Future<ApiPage<Cocktail>> getPage(
+      {String? spirit, int page = 1, int limit = 20});
 
   /// 详情。
   Future<Cocktail?> getDetail(String id);

@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../l10n/generated/app_localizations.dart';
+
 /// 全应用统一的无文案加载反馈。
 ///
 /// 以主题色光晕、琥珀流光和前后遮挡模拟莫比乌斯带，不需要额外动画资源。
@@ -20,7 +22,19 @@ class _AppLoadingViewState extends State<AppLoadingView>
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1800),
-  )..repeat();
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller
+        ..stop()
+        ..value = .25;
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
+  }
 
   @override
   void dispose() {
@@ -30,14 +44,22 @@ class _AppLoadingViewState extends State<AppLoadingView>
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: RepaintBoundary(
-        child: SizedBox.square(
-          dimension: widget.size,
-          child: CustomPaint(
-            painter: _MobiusPainter(
-              animation: _controller,
-              themeColor: widget.themeColor ?? const Color(0xFF7B61FF),
+    final l10n = Localizations.of<AppLocalizations>(context, AppLocalizations);
+    return Semantics(
+      container: true,
+      liveRegion: true,
+      label: l10n?.processing ?? 'Processing',
+      child: ExcludeSemantics(
+        child: Center(
+          child: RepaintBoundary(
+            child: SizedBox.square(
+              dimension: widget.size,
+              child: CustomPaint(
+                painter: _MobiusPainter(
+                  animation: _controller,
+                  themeColor: widget.themeColor ?? const Color(0xFF7B61FF),
+                ),
+              ),
             ),
           ),
         ),

@@ -48,6 +48,12 @@ class AppDataNotifier extends StateNotifier<AppData> {
     _persist();
   }
 
+  /// 登录后以服务端数据为准，避免不同账号之间混入本地私人酒单缓存。
+  void replaceMine(List<Cocktail> mine) {
+    state = state.copyWith(mine: List.unmodifiable(mine));
+    _persist();
+  }
+
   void clear() {
     state = state.copyWith(mine: const []);
     _persist();
@@ -77,7 +83,7 @@ String formatAmount(RecipeItem r, String unit) {
   return '$ml ml';
 }
 
-/// 顶部 Toast（1.8s 自动消失，同原型 flash()）。
+/// 顶部气泡 Toast。给动态文字和辅助技术留出足够读取时间。
 class ToastNotifier extends StateNotifier<String> {
   ToastNotifier() : super('');
   Timer? _timer;
@@ -85,7 +91,7 @@ class ToastNotifier extends StateNotifier<String> {
   void show(String message) {
     _timer?.cancel();
     state = message;
-    _timer = Timer(const Duration(milliseconds: 1800), () => state = '');
+    _timer = Timer(const Duration(seconds: 4), () => state = '');
   }
 
   @override

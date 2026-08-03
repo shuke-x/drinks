@@ -1,4 +1,5 @@
 import '../../core/network/dio_controller.dart';
+import '../../core/network/api_page.dart';
 import '../../models/cocktail.dart';
 
 /// 鸡尾酒服务端接口，覆盖 `/cocktails` 的全部读写端点。
@@ -9,26 +10,53 @@ class CocktailApi {
 
   final DioController _controller;
 
-  Future<List<Cocktail>> list({String? spirit, int page = 1, int limit = 20}) =>
-      _controller.get(
+  Future<List<CocktailCategory>> categories() => _controller.get(
+        '/cocktail-categories',
+        decoder: (data) => (data as List)
+            .map((item) =>
+                CocktailCategory.fromJson(item as Map<String, dynamic>))
+            .toList(growable: false),
+      );
+
+  Future<ApiPage<Cocktail>> listPage({
+    String? spirit,
+    int page = 1,
+    int limit = 20,
+  }) =>
+      _controller.getPage(
         '/cocktails',
         queryParameters: {
-          if (spirit != null && spirit != '全部') 'spirit': spirit,
+          if (spirit != null) 'spirit': spirit,
           'page': page,
           'limit': limit,
         },
         decoder: _cocktailList,
       );
 
+  Future<List<Cocktail>> list({
+    String? spirit,
+    int page = 1,
+    int limit = 20,
+  }) async =>
+      (await listPage(spirit: spirit, page: page, limit: limit)).items;
+
   Future<List<Cocktail>> recommendations() => _controller.get(
         '/cocktails/recommendations',
         decoder: _cocktailList,
       );
 
+  Future<List<Cocktail>> todayRecommendations() => _controller.get(
+        '/cocktails/today-recommendations',
+        decoder: (data) {
+          final json = data as Map<String, dynamic>;
+          return _cocktailList(json['items']);
+        },
+      );
+
   Future<Cocktail> random({String? spirit}) => _controller.get(
         '/cocktails/random',
         queryParameters: {
-          if (spirit != null && spirit != '全部') 'spirit': spirit,
+          if (spirit != null) 'spirit': spirit,
         },
         decoder: _cocktail,
       );
@@ -44,11 +72,29 @@ class CocktailApi {
         decoder: _cocktail,
       );
 
+  /// 创建公开酒单并立即进入审核流程。
+  ///
+  /// 服务端创建接口始终先生成草稿，因此公开创建需要紧接着提交该草稿。
+  Future<Cocktail> createForReview(CocktailUpsertRequest request) async {
+    final created = await create(request);
+    return submit(created.id);
+  }
+
   Future<Cocktail> update(String id, CocktailUpsertRequest request) =>
       _controller.patch(
         '/cocktails/$id',
         data: request.toJson(),
-        decoder: _cocktail,
+        decoder: _mutationCocktail,
+      );
+
+  Future<Cocktail> submit(String id) => _controller.post(
+        '/cocktails/$id/submit',
+        decoder: _mutationCocktail,
+      );
+
+  Future<Cocktail> withdraw(String id) => _controller.post(
+        '/cocktails/$id/withdraw',
+        decoder: _mutationCocktail,
       );
 
   Future<String> delete(String id) => _controller.delete(
@@ -59,8 +105,45 @@ class CocktailApi {
   static Cocktail _cocktail(dynamic data) =>
       Cocktail.fromJson(data as Map<String, dynamic>);
 
+  static Cocktail _mutationCocktail(dynamic data) {
+    final json = data as Map<String, dynamic>;
+    if (json['cocktail'] is! Map<String, dynamic>) return _cocktail(json);
+    final cocktail = _cocktail(json['cocktail']);
+    final revision = json['revision'];
+    return revision is Map<String, dynamic>
+        ? cocktail.copyWith(latestRevision: CocktailRevision.fromJson(revision))
+        : cocktail;
+  }
+
   static List<Cocktail> _cocktailList(dynamic data) =>
       (data as List).map((item) => _cocktail(item)).toList(growable: false);
+}
+
+class CocktailCategory {
+  const CocktailCategory({
+    required this.id,
+    required this.code,
+    required this.name,
+    this.nameEn,
+  });
+
+  final String id;
+  final String code;
+  final String name;
+  final String? nameEn;
+
+  factory CocktailCategory.fromJson(Map<String, dynamic> json) =>
+      CocktailCategory(
+        id: json['id'] as String,
+        code: json['code'] as String,
+        name: json['name'] as String,
+        nameEn: json['nameEn'] as String?,
+      );
+
+  String labelFor(String languageCode) =>
+      languageCode == 'en' && nameEn?.trim().isNotEmpty == true
+          ? nameEn!
+          : name;
 }
 
 /// 创建/修改私人酒单的请求体。未设置字段不会写入 PATCH 请求。
@@ -80,6 +163,7 @@ class CocktailUpsertRequest {
     this.story,
     this.recipe,
     this.steps,
+    this.isPrivate,
   });
 
   final String? zh;
@@ -96,6 +180,7 @@ class CocktailUpsertRequest {
   final String? story;
   final List<RecipeItem>? recipe;
   final List<String>? steps;
+  final bool? isPrivate;
 
   Map<String, dynamic> toJson() => {
         if (zh != null) 'zh': zh,
@@ -113,5 +198,6 @@ class CocktailUpsertRequest {
         if (recipe != null)
           'recipe': recipe!.map((item) => item.toJson()).toList(),
         if (steps != null) 'steps': steps,
+        if (isPrivate != null) 'isPrivate': isPrivate,
       };
 }

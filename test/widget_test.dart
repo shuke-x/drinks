@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tonight_drinks/components/app_loading_view.dart';
+import 'package:drinks/components/app_loading_view.dart';
 
 void main() {
   testWidgets('loading view communicates pending data', (tester) async {

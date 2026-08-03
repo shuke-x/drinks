@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 import '../../../components/glass.dart';
@@ -8,6 +6,7 @@ import '../../../components/palette.dart';
 import '../../../core/theme/app_effects.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../models/cocktail.dart';
+import '../../../l10n/l10n.dart';
 
 /// 今日推荐大卡片 —— 原型规格：高 238 / 圆角 28 / 毛玻璃 +
 /// 主题色渐变铺底 + 右上角 blur(26) 光球，700ms 色彩过渡。
@@ -20,6 +19,10 @@ class FeaturedCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = drink.themeColor;
+    final languageCode = Localizations.localeOf(context).languageCode;
+    final primaryName = drink.nameFor(languageCode);
+    final alternateName = drink.alternateNameFor(languageCode);
+    const ink = Color(0xFF241B24);
     return PressScale(
       onTap: onTap,
       scale: .98,
@@ -37,99 +40,142 @@ class FeaturedCard extends StatelessWidget {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(28),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 13, sigmaY: 13),
-            child: Stack(fit: StackFit.expand, children: [
-              // 主题色渐变（700ms 过渡）
-              TweenAnimationBuilder<Color?>(
-                tween: ColorTween(end: c),
-                duration: const Duration(milliseconds: 700),
-                curve: AppMotion.standard,
-                builder: (context, color, _) => DecoratedBox(
-                  decoration: BoxDecoration(gradient: drinkGrad(color ?? c)),
-                ),
+          child: Stack(fit: StackFit.expand, children: [
+            // 主题色渐变（700ms 过渡）
+            TweenAnimationBuilder<Color?>(
+              tween: ColorTween(end: c),
+              duration: const Duration(milliseconds: 700),
+              curve: AppMotion.standard,
+              builder: (context, color, _) => DecoratedBox(
+                decoration: BoxDecoration(gradient: drinkGrad(color ?? c)),
               ),
-              CocktailCover(drink: drink),
-              // 右上光球
-              if (drink.images.isEmpty)
-                Positioned(
-                  right: -30,
-                  top: -24,
-                  width: 190,
-                  height: 190,
-                  child: TweenAnimationBuilder<Color?>(
-                    tween: ColorTween(end: c),
-                    duration: const Duration(milliseconds: 700),
-                    builder: (context, color, _) => Opacity(
-                      opacity: .75,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: drinkOrb(color ?? c),
-                        ),
+            ),
+            CocktailCover(drink: drink),
+            // 右上光球
+            if (drink.images.isEmpty)
+              Positioned(
+                right: -30,
+                top: -24,
+                width: 190,
+                height: 190,
+                child: TweenAnimationBuilder<Color?>(
+                  tween: ColorTween(end: c),
+                  duration: const Duration(milliseconds: 700),
+                  builder: (context, color, _) => Opacity(
+                    opacity: .75,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: drinkOrb(color ?? c),
                       ),
                     ),
                   ),
                 ),
-              // 描边
-              DecoratedBox(
+              ),
+            // 浅色照片上白字会丢失；底部使用暖色雾面渐变承托深色标题。
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 158,
+              child: DecoratedBox(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(color: Colors.white.withOpacity(.15)),
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      const Color(0xFFF4EBDD).withOpacity(.94),
+                      const Color(0xFFF4EBDD).withOpacity(.62),
+                      const Color(0xFFF4EBDD).withOpacity(0),
+                    ],
+                  ),
                 ),
               ),
-              // 内容
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(children: [
-                      InfoPill(
-                        label: '今日推荐',
-                        fontSize: 11,
-                        fill: Colors.white.withOpacity(.94),
-                        borderColor: Colors.white.withOpacity(.94),
-                        textColor: const Color(0xFF0D0B10),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 7),
-                      ),
-                      const SizedBox(width: 8),
-                      InfoPill(
-                        label: '${drink.abv}% ABV',
-                        mono: true,
-                        fontSize: 11,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 7),
-                      ),
-                    ]),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(drink.en, style: AppType.playfair(size: 15)),
-                        const SizedBox(height: 6),
-                        Text(drink.zh,
-                            style: AppType.serifZh(
-                                size: 30, height: 1.1, letterSpacing: -.3)),
-                        const SizedBox(height: 8),
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 262),
-                          child: Text(
-                            drink.flavor,
-                            style: AppType.sans(
-                                size: 13,
-                                color: Colors.white.withOpacity(.62),
-                                height: 1.5),
-                          ),
-                        ),
-                      ],
+            ),
+            // 描边
+            DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: Colors.white.withOpacity(.15)),
+              ),
+            ),
+            // 内容
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(children: [
+                    InfoPill(
+                      label: context.l10n.featuredToday,
+                      fontSize: 11,
+                      fill: Colors.white.withOpacity(.94),
+                      borderColor: Colors.white.withOpacity(.94),
+                      textColor: const Color(0xFF0D0B10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 7),
                     ),
-                  ],
-                ),
+                    const SizedBox(width: 8),
+                    InfoPill(
+                      label: '${drink.abv}% ABV',
+                      mono: true,
+                      fontSize: 11,
+                      fill: const Color(0xFFF4EBDD).withOpacity(.86),
+                      borderColor: ink.withOpacity(.12),
+                      textColor: ink,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 7),
+                    ),
+                  ]),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (alternateName != null) ...[
+                        Text(
+                          alternateName,
+                          style: languageCode == 'en'
+                              ? AppType.serifZh(
+                                  size: 14,
+                                  weight: FontWeight.w600,
+                                  color: ink.withOpacity(.7),
+                                )
+                              : AppType.cocktailEnglish(
+                                  size: 15,
+                                  color: ink.withOpacity(.68),
+                                ),
+                        ),
+                        const SizedBox(height: 6),
+                      ],
+                      Text(
+                        primaryName,
+                        style: languageCode == 'en'
+                            ? AppType.cocktailEnglish(
+                                size: 30, color: ink, height: 1.1)
+                            : AppType.serifZh(
+                                size: 30,
+                                color: ink,
+                                height: 1.1,
+                                letterSpacing: -.3,
+                              ),
+                      ),
+                      const SizedBox(height: 8),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 262),
+                        child: Text(
+                          drink.flavor,
+                          style: AppType.sans(
+                              size: 13,
+                              color: ink.withOpacity(.72),
+                              height: 1.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ]),
-          ),
+            ),
+          ]),
         ),
       ),
     );

@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import 'api_exception.dart';
+import 'api_page.dart';
 import 'dio_client.dart';
 
 /// 所有服务端 API 共用的请求控制器。
@@ -19,12 +20,33 @@ class DioController {
   }) =>
       _request(_dio.get(path, queryParameters: queryParameters), decoder);
 
+  Future<ApiPage<T>> getPage<T>(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    required List<T> Function(dynamic data) decoder,
+  }) async {
+    try {
+      final response = await _dio.get(path, queryParameters: queryParameters);
+      return DioClient.instance.unwrapPage(response, decoder);
+    } on ApiException {
+      rethrow;
+    } on DioException catch (error) {
+      throw _apiException(error);
+    } catch (_) {
+      throw const ApiException(message: '请求失败，请稍后重试');
+    }
+  }
+
   Future<T> post<T>(
     String path, {
     Object? data,
+    Map<String, dynamic>? queryParameters,
     required T Function(dynamic data) decoder,
   }) =>
-      _request(_dio.post(path, data: data), decoder);
+      _request(
+        _dio.post(path, data: data, queryParameters: queryParameters),
+        decoder,
+      );
 
   Future<T> patch<T>(
     String path, {
@@ -50,10 +72,28 @@ class DioController {
     } on ApiException {
       rethrow;
     } on DioException catch (error) {
-      throw ApiException(message: _networkMessage(error));
+      throw _apiException(error);
     } catch (_) {
       throw const ApiException(message: '请求失败，请稍后重试');
     }
+  }
+
+  ApiException _apiException(DioException error) {
+    final body = error.response?.data;
+    if (body is Map) {
+      final message = body['message'];
+      final code = body['code'];
+      if (message is String && message.isNotEmpty) {
+        return ApiException(
+          code: code is int ? code : error.response?.statusCode ?? -1,
+          message: message,
+        );
+      }
+    }
+    return ApiException(
+      code: error.response?.statusCode ?? -1,
+      message: _networkMessage(error),
+    );
   }
 
   String _networkMessage(DioException error) {

@@ -2,9 +2,15 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../core/interaction/app_feedback.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_effects.dart';
 import '../core/theme/app_typography.dart';
+
+// Compatibility exports. Reusable controls live under components/common.
+export 'common/glass_action_button/glass_action_button.dart';
+export 'common/glass_circle_button/glass_circle_button.dart';
+export 'common/press_scale/press_scale.dart';
 
 /// 毛玻璃卡片 —— 原型规格：
 /// rgba(255,255,255,.08~.11) 填充 + blur(22~30) + 1px 白 15% 描边 + 大圆角。
@@ -63,49 +69,7 @@ class GlassCard extends StatelessWidget {
   }
 }
 
-/// 毛玻璃圆形图标按钮（右上角加号 / 返回 / 关闭）。
-class GlassCircleButton extends StatelessWidget {
-  const GlassCircleButton({
-    super.key,
-    required this.icon,
-    this.onTap,
-    this.size = 42,
-    this.iconSize = 18,
-    this.iconColor,
-  });
-
-  final IconData icon;
-  final VoidCallback? onTap;
-  final double size;
-  final double iconSize;
-  final Color? iconColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return PressScale(
-      onTap: onTap,
-      child: ClipOval(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.glassFill10,
-              border: Border.all(color: Colors.white.withOpacity(.18)),
-            ),
-            child: Icon(icon,
-                size: iconSize,
-                color: iconColor ?? Colors.white.withOpacity(.75)),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 胶囊标签（分类 chips / 卡片 tag）。
+/// 可交互的胶囊选择项。
 class GlassChip extends StatelessWidget {
   const GlassChip({
     super.key,
@@ -131,25 +95,43 @@ class GlassChip extends StatelessWidget {
     final style = mono
         ? AppType.mono(size: fontSize, color: fg)
         : AppType.sans(
-            size: fontSize, weight: FontWeight.w600, color: fg, height: 1.0);
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: AppMotion.slow,
-        curve: AppMotion.spring,
-        padding: padding,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(99),
-          color: selected
-              ? Colors.white.withOpacity(.94)
-              : Colors.white.withOpacity(.08),
-          border: Border.all(
+            size: fontSize,
+            weight: FontWeight.w600,
+            color: fg,
+            height: 1,
+          );
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    return Semantics(
+      button: onTap != null,
+      selected: selected,
+      label: label,
+      child: GestureDetector(
+        excludeFromSemantics: true,
+        onTap: onTap == null
+            ? null
+            : () {
+                AppFeedback.selection();
+                onTap?.call();
+              },
+        child: AnimatedContainer(
+          duration: reduceMotion ? Duration.zero : AppMotion.base,
+          curve: reduceMotion ? Curves.linear : AppMotion.standard,
+          constraints: const BoxConstraints(minHeight: 44),
+          alignment: Alignment.center,
+          padding: padding,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(99),
             color: selected
                 ? Colors.white.withOpacity(.94)
-                : AppColors.glassBorder,
+                : Colors.white.withOpacity(.08),
+            border: Border.all(
+              color: selected
+                  ? Colors.white.withOpacity(.94)
+                  : AppColors.glassBorder,
+            ),
           ),
+          child: Text(label, style: style),
         ),
-        child: Text(label, style: style),
       ),
     );
   }
@@ -184,7 +166,9 @@ class InfoPill extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(99),
         color: fill ?? Colors.white.withOpacity(.12),
-        border: Border.all(color: borderColor ?? Colors.white.withOpacity(.16)),
+        border: Border.all(
+          color: borderColor ?? Colors.white.withOpacity(.16),
+        ),
       ),
       child: Text(
         label,
@@ -194,47 +178,14 @@ class InfoPill extends StatelessWidget {
                 size: fontSize,
                 weight: FontWeight.w600,
                 color: fg,
-                height: 1.0),
+                height: 1,
+              ),
       ),
     );
   }
 }
 
-/// 按压缩放反馈（原型 press-scale 0.96 / 140ms）。
-class PressScale extends StatefulWidget {
-  const PressScale(
-      {super.key, required this.child, this.onTap, this.scale = 0.96});
-
-  final Widget child;
-  final VoidCallback? onTap;
-  final double scale;
-
-  @override
-  State<PressScale> createState() => _PressScaleState();
-}
-
-class _PressScaleState extends State<PressScale> {
-  bool _down = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTapDown: (_) => setState(() => _down = true),
-      onTapCancel: () => setState(() => _down = false),
-      onTapUp: (_) => setState(() => _down = false),
-      onTap: widget.onTap,
-      child: AnimatedScale(
-        scale: _down ? widget.scale : 1,
-        duration: AppMotion.fast,
-        curve: AppMotion.spring,
-        child: widget.child,
-      ),
-    );
-  }
-}
-
-/// 入场动画（原型 riseIn / fadeUp）。
+/// 入场位移动画（原型 riseIn / fadeUp）。
 class RiseIn extends StatelessWidget {
   const RiseIn({
     super.key,
@@ -242,15 +193,19 @@ class RiseIn extends StatelessWidget {
     this.delay = Duration.zero,
     this.offset = 26,
     this.duration = const Duration(milliseconds: 550),
+    this.followRouteOnExit = true,
   });
 
   final Widget child;
   final Duration delay;
   final double offset;
   final Duration duration;
+  final bool followRouteOnExit;
 
   @override
   Widget build(BuildContext context) {
+    if (MediaQuery.disableAnimationsOf(context)) return child;
+    final routeAnimation = ModalRoute.of(context)?.animation;
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
       duration: duration + delay,
@@ -260,8 +215,28 @@ class RiseIn extends StatelessWidget {
         curve: AppMotion.spring,
       ),
       // BackdropFilter 不支持被不透明度图层包裹；入场只保留位移。
-      builder: (context, t, c) =>
-          Transform.translate(offset: Offset(0, offset * (1 - t)), child: c),
+      builder: (context, t, c) {
+        if (routeAnimation == null || !followRouteOnExit) {
+          return Transform.translate(
+            offset: Offset(0, offset * (1 - t)),
+            child: c,
+          );
+        }
+        return AnimatedBuilder(
+          animation: routeAnimation,
+          child: c,
+          builder: (context, child) {
+            final routeT = AppMotion.overlayEnter.transform(
+              routeAnimation.value.clamp(0.0, 1.0),
+            );
+            final progress = t * routeT;
+            return Transform.translate(
+              offset: Offset(0, offset * (1 - progress)),
+              child: child,
+            );
+          },
+        );
+      },
       child: child,
     );
   }

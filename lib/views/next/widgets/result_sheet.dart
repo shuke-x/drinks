@@ -7,6 +7,7 @@ import '../../../components/glass.dart';
 import '../../../core/theme/app_effects.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../models/cocktail.dart';
+import '../../../l10n/l10n.dart';
 
 /// 抽选结果面板 —— 原型规格：圆角 30 / blur(30) / 填充 .11 / 描边 .2，
 /// sheetUp 弹簧入场（550ms cubic-bezier(.34,1.3,.64,1)）。
@@ -24,11 +25,13 @@ class ResultSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final languageCode = Localizations.localeOf(context).languageCode;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return TweenAnimationBuilder<double>(
       key: ValueKey(drink.id),
       tween: Tween(begin: 1, end: 0),
-      duration: const Duration(milliseconds: 550),
-      curve: AppMotion.spring,
+      duration: reduceMotion ? Duration.zero : AppMotion.slow,
+      curve: reduceMotion ? Curves.linear : AppMotion.standard,
       builder: (context, v, child) => Transform.translate(
         offset: Offset(0, v * 240),
         child: child,
@@ -50,16 +53,21 @@ class ResultSheet extends StatelessWidget {
                 Icon(PhosphorIcons.sparkle(PhosphorIconsStyle.fill),
                     size: 15, color: Colors.white),
                 const SizedBox(width: 8),
-                Text('今晚就它了',
+                Text(context.l10n.tonightThisOne,
                     style: AppType.eyebrow(
                         size: 11.5,
                         color: const Color(0xFFEBEBF5).withOpacity(.85))),
               ]),
               const SizedBox(height: 12),
-              Text(drink.zh, style: AppType.serifZh(size: 26, height: 1.2)),
+              Text(
+                drink.nameFor(languageCode),
+                style: languageCode == 'en'
+                    ? AppType.cocktailEnglish(size: 28, height: 1.15)
+                    : AppType.serifZh(size: 26, height: 1.2),
+              ),
               const SizedBox(height: 9),
               Text(
-                '${drink.flavor} 今晚，就让${drink.base}带路。',
+                context.l10n.resultFlavor(drink.flavor, drink.base),
                 style: AppType.sans(
                     size: 13.5,
                     color: Colors.white.withOpacity(.66),
@@ -77,7 +85,7 @@ class ResultSheet extends StatelessWidget {
                         borderRadius: BorderRadius.circular(99),
                         color: Colors.white.withOpacity(.95),
                       ),
-                      child: Text('查看配方',
+                      child: Text(context.l10n.viewRecipe,
                           style: AppType.sans(
                               size: 14.5,
                               weight: FontWeight.w600,
@@ -99,7 +107,7 @@ class ResultSheet extends StatelessWidget {
                         border:
                             Border.all(color: Colors.white.withOpacity(.18)),
                       ),
-                      child: Text('再抽一次',
+                      child: Text(context.l10n.drawAgain,
                           style: AppType.sans(
                               size: 14.5,
                               weight: FontWeight.w600,

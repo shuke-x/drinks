@@ -4,6 +4,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../models/cocktail.dart';
 import 'palette.dart';
 
+/// 列表、Banner、Next 与详情统一使用同一解码缓存键。
+const int kCocktailCoverCacheWidth = 1080;
+
 /// 酒单卡片统一封面。
 ///
 /// 服务端的 [Cocktail.images] 第一张有效完整 URL 优先展示；没有图片、空字符串
@@ -34,16 +37,19 @@ class CocktailCover extends StatelessWidget {
         : Image.network(
             source,
             fit: fit,
-            filterQuality: FilterQuality.medium,
+            cacheWidth: kCocktailCoverCacheWidth,
+            filterQuality: FilterQuality.low,
+            gaplessPlayback: true,
+            loadingBuilder: (context, child, progress) =>
+                progress == null ? child : fallback,
             errorBuilder: (_, __, ___) => fallback,
           );
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        fallback,
-        image,
-      ],
+    return RepaintBoundary(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [fallback, image],
+      ),
     );
   }
 }

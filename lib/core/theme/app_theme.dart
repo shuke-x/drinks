@@ -6,7 +6,9 @@ import 'app_colors.dart';
 class AppSpacing {
   AppSpacing._();
   static const double gutter = 18;
-  static const double tabBarBottom = 26;
+
+  /// 悬浮 TabBar 与底部安全区之间的视觉间距。
+  static const double tabBarBottom = 14;
 }
 
 class AppTheme {

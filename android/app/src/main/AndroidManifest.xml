@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 网络访问为普通权限，安装时自动授予，不会弹出系统授权框。 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:label="tonight_drinks"
         android:name="${applicationName}"

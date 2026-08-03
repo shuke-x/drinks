@@ -2,6 +2,10 @@
 
 网络请求统一经由 `DioController`，业务接口按服务域放在本目录。Widget 不应自行创建 Dio；在 Riverpod Store/Notifier 中通过 Provider 获取 API。
 
+列表和可复用请求统一接入全局 `QueryClient`，不要在页面内自行维护 Map 或 Timer。缓存
+key、`staleTime`、`cacheTime`、失效规则和分页接入方式见
+[`../../core/query/QUERY_CACHE.md`](../../core/query/QUERY_CACHE.md)。
+
 ```dart
 import '../data/apis/api_providers.dart';
 
@@ -72,7 +76,10 @@ import '../data/apis/api_providers.dart';
 
 final uploadApi = ref.read(uploadApiProvider);
 final file = await MultipartFile.fromFile('/absolute/path/cover.webp');
-final imageUrl = await uploadApi.uploadImage(file);
+final imageUrl = await uploadApi.uploadImage(
+  file,
+  purpose: UploadPurpose.cocktail,
+);
 ```
 
 ## 错误处理

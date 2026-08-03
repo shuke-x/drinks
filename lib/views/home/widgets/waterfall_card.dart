@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 import '../../../components/glass.dart';
@@ -25,26 +23,32 @@ class WaterfallCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = drink.themeColor;
-    return PressScale(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(.4),
-              blurRadius: 34,
-              offset: const Offset(0, 14),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(22),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 11, sigmaY: 11),
+    final languageCode = Localizations.localeOf(context).languageCode;
+    final primaryName = drink.nameFor(languageCode);
+    final alternateName = drink.alternateNameFor(languageCode);
+    return RepaintBoundary(
+      child: PressScale(
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(.4),
+                blurRadius: 34,
+                offset: const Offset(0, 14),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(22),
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(.08),
+                borderRadius: BorderRadius.circular(22),
+              ),
+              // 前景描边最后绘制，封面图片不会再压住卡片边缘。
+              foregroundDecoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(22),
                 border: Border.all(color: Colors.white.withOpacity(.15)),
               ),
@@ -90,21 +94,45 @@ class WaterfallCard extends StatelessWidget {
                       child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(drink.zh,
-                                style: AppType.serifZh(size: 16, height: 1.25)),
-                            const SizedBox(height: 3),
-                            Text(drink.en,
-                                style: AppType.playfair(
-                                    size: 11.5,
-                                    color: Colors.white.withOpacity(.5),
-                                    height: 1.3)),
+                            Text(
+                              primaryName,
+                              style: languageCode == 'en'
+                                  ? AppType.cocktailEnglish(
+                                      size: 17, height: 1.2)
+                                  : AppType.serifZh(size: 16, height: 1.25),
+                            ),
+                            if (alternateName != null) ...[
+                              const SizedBox(height: 3),
+                              Text(
+                                alternateName,
+                                style: languageCode == 'en'
+                                    ? AppType.serifZh(
+                                        size: 11.5,
+                                        weight: FontWeight.w500,
+                                        color: Colors.white.withOpacity(.5),
+                                        height: 1.3,
+                                      )
+                                    : AppType.cocktailEnglish(
+                                        size: 11.5,
+                                        color: Colors.white.withOpacity(.5),
+                                        height: 1.3,
+                                      ),
+                              ),
+                            ],
                             const SizedBox(height: 10),
-                            InfoPill(
-                              label: drink.base,
-                              fontSize: 10.5,
-                              fill: Colors.white.withOpacity(.1),
-                              borderColor: Colors.white.withOpacity(.15),
-                              textColor: Colors.white.withOpacity(.8),
+                            Wrap(
+                              spacing: 5,
+                              runSpacing: 5,
+                              children: [
+                                for (final tip in drink.cardTips)
+                                  InfoPill(
+                                    label: tip,
+                                    fontSize: 10.5,
+                                    fill: Colors.white.withOpacity(.1),
+                                    borderColor: Colors.white.withOpacity(.15),
+                                    textColor: Colors.white.withOpacity(.8),
+                                  ),
+                              ],
                             ),
                           ]),
                     ),

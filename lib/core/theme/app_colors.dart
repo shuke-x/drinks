@@ -1,4 +1,4 @@
-import 'dart:ui';
+import 'package:flutter/material.dart';
 
 /// 颜色 tokens —— 提取自设计稿 tokens/colors.css 与原型内联样式。
 class AppColors {
@@ -35,6 +35,21 @@ class AppColors {
 
   /// System 页主题色（原型 themeColor()）
   static const Color systemAccent = Color(0xFF5E5CE6);
+
+  // ---- 账户认证主题色（Apple 深色模式的低饱和系统蓝）----
+  static const Color brand1 = Color(0xFF0A84FF);
+  static const Color brand2 = Color(0xFF0A84FF);
+  static const Color brand3 = Color(0xFF5E5CE6);
+  static const LinearGradient brandGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [brand1, brand3],
+  );
+  static const BoxShadow shadowAccent = BoxShadow(
+    color: Color(0x550A84FF),
+    blurRadius: 24,
+    offset: Offset(0, 10),
+  );
 
   /// 上传表单主题色候选（原型 SWATCH）
   static const List<Color> swatch = [

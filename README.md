@@ -9,6 +9,7 @@
 - Flutter 3.x（Dart >= 3.3）
 - go_router（Shell 三 Tab + 详情/上传透明覆盖层路由）
 - flutter_riverpod（状态管理）
+- QueryClient（全局 Map 查询缓存、stale/cache 生命周期、并发去重）
 - dio（上线后对接 NestJS 后端）
 - shared_preferences（我的酒单 / 计量单位持久化）
 - google_fonts（Noto Serif SC / Playfair Display / Hanken Grotesk / DM Mono）
@@ -70,6 +71,7 @@ lib/
 ├── core/
 │   ├── config/env.dart           # DATA_SOURCE / FLAVOR
 │   ├── network/                  # dio 封装、统一响应解包、异常
+│   ├── query/                    # QueryClient、全局 Map 缓存与接入文档
 │   └── theme/                    # 颜色 / 字体 / 动效 / 间距 tokens（对应设计稿 tokens）
 ├── models/cocktail.dart
 ├── data/

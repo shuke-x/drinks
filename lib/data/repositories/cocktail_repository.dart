@@ -1,4 +1,5 @@
 import '../../models/cocktail.dart';
+import '../../core/network/api_page.dart';
 import '../datasources/cocktail_datasource.dart';
 import '../datasources/cocktail_remote_datasource.dart';
 
@@ -13,6 +14,13 @@ class CocktailRepository {
 
   Future<List<Cocktail>> getBySpirit(String spirit) =>
       _source.getList(spirit: spirit);
+
+  Future<ApiPage<Cocktail>> getPage({
+    String? spirit,
+    int page = 1,
+    int limit = 20,
+  }) =>
+      _source.getPage(spirit: spirit, page: page, limit: limit);
 
   Future<Cocktail?> getDetail(String id) => _source.getDetail(id);
 
