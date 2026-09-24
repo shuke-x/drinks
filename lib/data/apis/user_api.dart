@@ -27,10 +27,11 @@ class UserProfile {
 }
 
 class UserApi {
-  UserApi({DioController? controller})
+  UserApi({DioController? controller, this.lang = 'zh'})
       : _controller = controller ?? DioController();
 
   final DioController _controller;
+  final String lang;
 
   Future<UserProfile> me() => _controller.get(
         '/users/me',
@@ -57,10 +58,12 @@ class UserApi {
     int page = 1,
     int limit = 20,
     CocktailStatus? status,
+    String? lang,
   }) =>
       _controller.getPage(
         '/users/me/cocktails',
         queryParameters: {
+          'lang': lang ?? this.lang,
           'page': page,
           'limit': limit,
           if (status != null) 'status': status.name,
@@ -70,11 +73,12 @@ class UserApi {
             .toList(growable: false),
       );
 
-  Future<List<Cocktail>> myCocktails() async =>
-      (await myCocktailsPage(limit: 50)).items;
+  Future<List<Cocktail>> myCocktails({String? lang}) async =>
+      (await myCocktailsPage(limit: 50, lang: lang)).items;
 
-  Future<Set<String>> favoriteIds() => _controller.get(
+  Future<Set<String>> favoriteIds({String? lang}) => _controller.get(
         '/users/me/favorites',
+        queryParameters: {'lang': lang ?? this.lang},
         decoder: (data) => (data as List)
             .map((item) => item as Map<String, dynamic>)
             .map((item) => item['cocktail'] as Map<String, dynamic>)

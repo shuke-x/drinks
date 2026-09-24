@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/auth/token_storage.dart';
+import '../core/config/env.dart';
+import '../stores/user_store.dart';
 
 import '../models/cocktail.dart';
 import 'palette.dart';
@@ -11,7 +15,22 @@ const int kCocktailCoverCacheWidth = 1080;
 ///
 /// 服务端的 [Cocktail.images] 第一张有效完整 URL 优先展示；没有图片、空字符串
 /// 或加载失败时回退到主题色渐变。
-class CocktailCover extends StatelessWidget {
+final _assetHeaders = FutureProvider.autoDispose
+    .family<Map<String, String>, String>((ref, source) async {
+  final user = ref.watch(userProvider);
+  final uri = Uri.tryParse(source);
+  final api = Uri.parse(Env.baseUrl);
+  if (!user.isLoggedIn ||
+      uri == null ||
+      uri.origin != api.origin ||
+      !uri.path.startsWith('/static/')) {
+    return {};
+  }
+  final token = await TokenStorage.instance.readAccessToken();
+  return token == null ? {} : {'Authorization': 'Bearer $token'};
+});
+
+class CocktailCover extends ConsumerWidget {
   const CocktailCover(
       {super.key, required this.drink, this.fit = BoxFit.cover});
 
@@ -19,7 +38,7 @@ class CocktailCover extends StatelessWidget {
   final BoxFit fit;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final fallback = DecoratedBox(
       decoration: BoxDecoration(gradient: drinkGrad(drink.themeColor)),
       child: const SizedBox.expand(),
@@ -27,16 +46,20 @@ class CocktailCover extends StatelessWidget {
     final source = drink.coverImageUrl;
     if (source == null) return fallback;
 
+    final headers = ref.watch(_assetHeaders(source));
+    if (headers.isLoading) return fallback;
     final isSvg = Uri.parse(source).path.toLowerCase().endsWith('.svg');
     final image = isSvg
         ? SvgPicture.network(
             source,
             fit: fit,
+            headers: headers.valueOrNull ?? {},
             placeholderBuilder: (_) => fallback,
           )
         : Image.network(
             source,
             fit: fit,
+            headers: headers.valueOrNull ?? {},
             cacheWidth: kCocktailCoverCacheWidth,
             filterQuality: FilterQuality.low,
             gaplessPlayback: true,

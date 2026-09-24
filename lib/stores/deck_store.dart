@@ -27,7 +27,6 @@ class DeckController extends ChangeNotifier {
   bool dragging = false;
   bool spinning = false;
   bool _coasting = false;
-  double? _settleTarget;
 
   /// 抽中后金色光晕（1.5s）与结果面板对应的酒 id。
   String? landedId;
@@ -48,7 +47,7 @@ class DeckController extends ChangeNotifier {
   Cocktail? _winner;
 
   bool get suppressClick => _noClick;
-  bool get settling => _settleTarget != null;
+  bool get settling => false;
 
   /// 覆盖页打开时停止巡航并立即通知卡组重绘。
   void pause() {
@@ -57,7 +56,6 @@ class DeckController extends ChangeNotifier {
     paused = true;
     dragging = false;
     _coasting = false;
-    _settleTarget = null;
     _aim = null;
     notifyListeners();
   }
@@ -105,30 +103,13 @@ class DeckController extends ChangeNotifier {
     if (paused) return;
 
     if (_coasting) {
-      // 快速甩动后的自由滚动：速度越大滑过的卡片越多，再自然交给吸附弹簧。
+      // 快速甩动后的自由滚动：速度越大滑过的卡片越多；减速后从当前位置
+      // 自然衔接空闲巡航，不再吸附到最近的整数 index。
       pos += vel * dt;
       vel *= math.exp(-4.2 * dt);
-      if (vel.abs() < .7) {
+      if (vel.abs() < .08) {
         _coasting = false;
-        _beginSettle((pos + vel * .16).roundToDouble());
-      }
-      notifyListeners();
-      return;
-    }
-
-    final settleTarget = _settleTarget;
-    if (settleTarget != null) {
-      // Lightly underdamped spring: it absorbs release velocity without the
-      // long decorative bounce of a generic elastic curve.
-      const stiffness = 46.0;
-      const damping = 13.0;
-      final acceleration = (settleTarget - pos) * stiffness - vel * damping;
-      vel += acceleration * dt;
-      pos += vel * dt;
-      if ((settleTarget - pos).abs() < .0015 && vel.abs() < .018) {
-        pos = settleTarget;
         vel = 0;
-        _settleTarget = null;
       }
       notifyListeners();
       return;
@@ -152,7 +133,6 @@ class DeckController extends ChangeNotifier {
     _aim = pos;
     vel = 0;
     _coasting = false;
-    _settleTarget = null;
     _spin = null;
     notifyListeners();
   }
@@ -177,16 +157,15 @@ class DeckController extends ChangeNotifier {
     // Flutter 已计算好抬手速度，换算为「卡/秒」保留自然惯性。
     vel = (-pixelsPerSecond / kDeckDragStep).clamp(-3.2, 3.2);
     if (_moved && reduceMotion) {
-      pos = (pos + vel * .18).roundToDouble();
       vel = 0;
       _coasting = false;
-      _settleTarget = null;
     } else {
       _coasting = _moved && vel.abs() >= .4;
       if (_moved && !_coasting) {
-        _beginSettle((pos + vel * .18).roundToDouble());
+        vel = 0;
       }
     }
+    if (!_moved) vel = 0;
     if (_moved) {
       _noClick = true;
       _clickTimer?.cancel();
@@ -194,10 +173,6 @@ class DeckController extends ChangeNotifier {
           Timer(const Duration(milliseconds: 280), () => _noClick = false);
     }
     notifyListeners();
-  }
-
-  void _beginSettle(double target) {
-    _settleTarget = target;
   }
 
   // ---- 抽选（对应原型 spin / finishSpin）----
@@ -213,7 +188,6 @@ class DeckController extends ChangeNotifier {
     _winner = list[pick];
     vel = 0;
     _coasting = false;
-    _settleTarget = null;
     if (reduceMotion) {
       pos = to.toDouble();
       spinning = false;

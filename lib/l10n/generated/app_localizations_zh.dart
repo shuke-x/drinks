@@ -243,10 +243,34 @@ class AppLocalizationsZh extends AppLocalizations {
   String get next => '灵感';
 
   @override
+  String get records => '记录';
+
+  @override
+  String get recipes => '配方';
+
+  @override
+  String get recommend => '风味';
+
+  @override
   String get cocktails => '酒柜';
 
   @override
   String get user => '我的';
+
+  @override
+  String get search => '搜索';
+
+  @override
+  String get searchCocktails => '搜索酒单';
+
+  @override
+  String get searchCocktailsHint => '搜索酒名、基酒、标签或原料';
+
+  @override
+  String get searchNoResults => '没有找到相关酒单';
+
+  @override
+  String get searchNoResultsHint => '换一个酒名、基酒或原料试试。';
 
   @override
   String get emptyCocktails => '这里还没有酒单';
@@ -372,6 +396,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get flavorStory => '风味故事';
+
+  @override
+  String get flavorImpression => '风味印象';
 
   @override
   String get tonightThisOne => '今晚就它了';
@@ -572,4 +599,58 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get removeIngredient => '移除配料';
+
+  @override
+  String get photoAccessDenied => '无法访问照片，请在系统设置中允许照片访问后重试。';
+
+  @override
+  String get photoReadFailed => '无法读取照片，请重新选择。';
+
+  @override
+  String get privacyAndUse => '隐私与使用说明';
+
+  @override
+  String get privacyAndUseSubtitle => '数据使用、年龄要求与账户管理';
+
+  @override
+  String get privacyDataTitle => '我们处理的数据';
+
+  @override
+  String get privacyDataBody =>
+      '账户功能使用邮箱、昵称和账户标识。你上传的头像、配方、收藏和品饮记录会发送至服务端，用于保存和同步。记录可包含照片、地点、价格和笔记。搜索词会发送至服务端以获取结果。';
+
+  @override
+  String get privacyPhotosTitle => '照片选择';
+
+  @override
+  String get privacyPhotosBody =>
+      '仅在你主动选择照片时打开系统相册，用于头像、酒单或品饮记录。取消选择不会清除已填写的内容。';
+
+  @override
+  String get privacyDiagnosticsTitle => '错误诊断';
+
+  @override
+  String get privacyDiagnosticsBody =>
+      '应用错误诊断仅发送错误类别、代码位置生成的分组标识和运行平台，不发送令牌、邮箱、笔记、照片或原始异常内容。';
+
+  @override
+  String get privacyAccountTitle => '账户与内容';
+
+  @override
+  String get privacyAccountBody =>
+      '可在个人资料页永久删除账户。公开发布的配方可能以匿名作者继续保留；删除前请阅读确认说明。请勿在公开内容中加入私人信息。';
+
+  @override
+  String get responsibleUseTitle => '年龄与理性饮酒';
+
+  @override
+  String get responsibleUseBody =>
+      '本应用仅面向年满 18 岁的用户。如所在地的法定饮酒年龄更高，请遵守当地要求。请理性饮酒，不要酒后驾驶。配方仅供参考。';
+
+  @override
+  String get privacyPendingTitle => '客服与举报';
+
+  @override
+  String get privacyPendingBody =>
+      '客服、隐私请求与内容举报：shybro027@gmail.com。完整隐私政策和使用条款将在公开发布前提供。';
 }

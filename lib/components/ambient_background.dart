@@ -38,7 +38,7 @@ class AmbientBackground extends StatelessWidget {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: RadialGradient(
-                          colors: [oc, oc.withOpacity(0)],
+                          colors: [oc, oc.withValues(alpha: 0)],
                           stops: const [0.0, 0.7],
                         ),
                       ),
@@ -48,11 +48,11 @@ class AmbientBackground extends StatelessWidget {
 
                 return Stack(children: [
                   orb(-w * .18, h * .02, w * 1.05, h * .56,
-                      tint.withOpacity(.53)),
+                      tint.withValues(alpha: .53)),
                   orb(w * .30, h * .28, w * .95, h * .54,
-                      tint.withOpacity(.33)),
+                      tint.withValues(alpha: .33)),
                   orb(w * .02, h * .62, w * 1.15, h * .54,
-                      const Color(0xFF787880).withOpacity(.22)),
+                      const Color(0xFF787880).withValues(alpha: .22)),
                 ]);
               }),
             ),

@@ -6,19 +6,19 @@ import 'core/theme/app_theme.dart';
 import 'components/app_toast_overlay.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'router/app_router.dart';
-import 'stores/user_store.dart';
+import 'stores/locale_store.dart';
 
 class TonightDrinksApp extends ConsumerWidget {
   const TonightDrinksApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final language = ref.watch(userProvider.select((user) => user.language));
+    final language = ref.watch(appLanguageProvider);
     return MaterialApp.router(
       onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark(),
-      locale: language == null ? null : Locale(language),
+      locale: Locale(language),
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: const [
         AppLocalizations.delegate,

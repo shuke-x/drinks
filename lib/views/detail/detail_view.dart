@@ -23,6 +23,7 @@ import '../../stores/my_cocktails_store.dart';
 import '../../stores/settings_store.dart';
 import '../../stores/user_store.dart';
 import '../../l10n/l10n.dart';
+import '../records/record_detail_view.dart';
 
 /// 详情覆盖层 —— 原型 detail：
 /// 全屏 rgba(13,11,16,.72)+blur(26) 覆盖，330 高渐变头图 + 光球 + 玻璃环，
@@ -34,6 +35,8 @@ class DetailView extends ConsumerStatefulWidget {
     this.initialDrink,
     this.allowEditing = false,
   });
+
+  static const double artworkHeight = 400;
 
   final String id;
   final Cocktail? initialDrink;
@@ -148,7 +151,7 @@ class _DetailViewState extends ConsumerState<DetailView> {
             SizedBox(
               // Artwork is full-bleed behind the status bar. Only the
               // interactive controls are inset below the sensor housing.
-              height: 330 + topPad,
+              height: DetailView.artworkHeight + topPad,
               child: Stack(children: [
                 Positioned.fill(
                   child: CocktailCover(drink: drink),
@@ -175,13 +178,14 @@ class _DetailViewState extends ConsumerState<DetailView> {
                       height: 150,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white.withOpacity(.3)),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: .3)),
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            Colors.white.withOpacity(.24),
-                            Colors.white.withOpacity(.05),
+                            Colors.white.withValues(alpha: .24),
+                            Colors.white.withValues(alpha: .05),
                           ],
                         ),
                       ),
@@ -199,8 +203,8 @@ class _DetailViewState extends ConsumerState<DetailView> {
                         begin: Alignment.bottomCenter,
                         end: Alignment.topCenter,
                         colors: [
-                          const Color(0xFF0D0B10).withOpacity(.9),
-                          const Color(0xFF0D0B10).withOpacity(0),
+                          const Color(0xFF0D0B10).withValues(alpha: .9),
+                          const Color(0xFF0D0B10).withValues(alpha: 0),
                         ],
                       ),
                     ),
@@ -276,7 +280,7 @@ class _DetailViewState extends ConsumerState<DetailView> {
 
             // ---- 内容（上移 52 叠在头图渐隐区上）----
             Transform.translate(
-              offset: const Offset(0, -52),
+                  offset: const Offset(0, -130),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
                     AppSpacing.gutter, 0, AppSpacing.gutter, 0),
@@ -292,8 +296,8 @@ class _DetailViewState extends ConsumerState<DetailView> {
                                 primaryName,
                                 style: languageCode == 'en'
                                     ? AppType.cocktailEnglish(
-                                        size: 34, height: 1.1)
-                                    : AppType.serifZh(size: 32, height: 1.15),
+                                        size: 25, height: 1.12)
+                                    : AppType.serifZh(size: 28, height: 1.18),
                               ),
                               if (alternateName != null) ...[
                                 const SizedBox(height: 7),
@@ -303,11 +307,13 @@ class _DetailViewState extends ConsumerState<DetailView> {
                                       ? AppType.serifZh(
                                           size: 14,
                                           weight: FontWeight.w500,
-                                          color: Colors.white.withOpacity(.6),
+                                          color: Colors.white
+                                              .withValues(alpha: .6),
                                         )
                                       : AppType.cocktailEnglish(
                                           size: 15,
-                                          color: Colors.white.withOpacity(.65),
+                                          color: Colors.white
+                                              .withValues(alpha: .65),
                                         ),
                                 ),
                               ],
@@ -317,7 +323,7 @@ class _DetailViewState extends ConsumerState<DetailView> {
                                   InfoPill(
                                     label: t,
                                     fontSize: 11,
-                                    fill: Colors.white.withOpacity(.1),
+                                    fill: Colors.white.withValues(alpha: .1),
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 12, vertical: 7),
                                   ),
@@ -326,11 +332,41 @@ class _DetailViewState extends ConsumerState<DetailView> {
                       ),
                       const SizedBox(height: 18),
 
+                      // 风味印象
+                      RiseIn(
+                        delay: const Duration(milliseconds: 40),
+                        followRouteOnExit: false,
+                        child: GlassCard(
+                          key: const ValueKey('detail_flavor_section'),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(context.l10n.flavorImpression,
+                                  style: AppType.eyebrow()),
+                              const SizedBox(height: 12),
+                              Text(
+                                drink.flavor.trim().isNotEmpty
+                                    ? drink.flavor
+                                    : drink.tags.isNotEmpty
+                                        ? drink.tags.join(' · ')
+                                        : drink.base,
+                                style: AppType.playfair(
+                                    size: 17,
+                                    height: 1.55,
+                                    color: Colors.white.withValues(alpha: .9)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
                       // 配方
                       RiseIn(
                         delay: const Duration(milliseconds: 80),
                         followRouteOnExit: false,
                         child: GlassCard(
+                          key: const ValueKey('detail_recipe_section'),
                           child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -347,8 +383,8 @@ class _DetailViewState extends ConsumerState<DetailView> {
                                     decoration: BoxDecoration(
                                       border: Border(
                                         bottom: BorderSide(
-                                            color:
-                                                Colors.white.withOpacity(.07)),
+                                            color: Colors.white
+                                                .withValues(alpha: .07)),
                                       ),
                                     ),
                                     child: Row(
@@ -368,7 +404,7 @@ class _DetailViewState extends ConsumerState<DetailView> {
                                                 size: 13,
                                                 weight: FontWeight.w400,
                                                 color: Colors.white
-                                                    .withOpacity(.62))),
+                                                    .withValues(alpha: .62))),
                                       ],
                                     ),
                                   ),
@@ -404,8 +440,8 @@ class _DetailViewState extends ConsumerState<DetailView> {
                                           alignment: Alignment.center,
                                           decoration: BoxDecoration(
                                             shape: BoxShape.circle,
-                                            color:
-                                                Colors.white.withOpacity(.92),
+                                            color: Colors.white
+                                                .withValues(alpha: .92),
                                           ),
                                           child: Text('${i + 1}',
                                               style: AppType.mono(
@@ -419,7 +455,7 @@ class _DetailViewState extends ConsumerState<DetailView> {
                                               style: AppType.sans(
                                                   size: 14,
                                                   color: Colors.white
-                                                      .withOpacity(.86),
+                                                      .withValues(alpha: .86),
                                                   height: 1.55)),
                                         ),
                                       ],
@@ -457,6 +493,7 @@ class _DetailViewState extends ConsumerState<DetailView> {
                         delay: const Duration(milliseconds: 380),
                         followRouteOnExit: false,
                         child: GlassCard(
+                          key: const ValueKey('detail_story_section'),
                           fillOpacity: .07,
                           borderOpacity: .14,
                           padding: const EdgeInsets.all(20),
@@ -469,7 +506,8 @@ class _DetailViewState extends ConsumerState<DetailView> {
                                 Text(drink.story,
                                     style: AppType.playfair(
                                         size: 17,
-                                        color: Colors.white.withOpacity(.9),
+                                        color:
+                                            Colors.white.withValues(alpha: .9),
                                         height: 1.6)),
                               ]),
                         ),
@@ -509,6 +547,12 @@ class _DetailViewState extends ConsumerState<DetailView> {
                           ),
                         ],
                       ],
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        key: const ValueKey('detail_record_section'),
+                        width: double.infinity,
+                        child: RecipeRecordSection(drink: drink),
+                      ),
                       SizedBox(height: bottomPad + 28),
                     ]),
               ),
@@ -577,7 +621,7 @@ class _DetailViewState extends ConsumerState<DetailView> {
       padding: const EdgeInsets.all(16),
       shadow: false,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Icon(icon, size: 19, color: Colors.white.withOpacity(.55)),
+        Icon(icon, size: 19, color: Colors.white.withValues(alpha: .55)),
         const SizedBox(height: 11),
         Text(label.toUpperCase(),
             style: AppType.eyebrow(

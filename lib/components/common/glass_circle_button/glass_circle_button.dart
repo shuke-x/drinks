@@ -17,6 +17,7 @@ class GlassCircleButton extends StatelessWidget {
     this.size = 42,
     this.iconSize = 18,
     this.iconColor,
+    this.backgroundColor,
     this.semanticLabel,
     this.appleSystemImageName,
   })  : assert(size > 0),
@@ -38,6 +39,11 @@ class GlassCircleButton extends StatelessWidget {
 
   /// 图标前景色；省略时根据对比度使用白色。
   final Color? iconColor;
+
+  /// 原生 Liquid Glass 的可选表面底色。
+  ///
+  /// Flutter fallback 仍使用与详情页收藏按钮一致的玻璃渐变。
+  final Color? backgroundColor;
 
   /// VoiceOver 与其他辅助技术读取的操作名称。
   final String? semanticLabel;
@@ -124,6 +130,7 @@ class GlassCircleButton extends StatelessWidget {
           systemImageName: appleSystemImageName,
           semanticLabel: semanticLabel,
           foregroundColor: iconColor ?? Colors.white,
+          backgroundColor: backgroundColor,
           imagePadding: 0,
         ),
       ),

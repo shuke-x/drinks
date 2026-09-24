@@ -62,12 +62,10 @@ class AuthApi {
     required String password,
     String? name,
   }) async {
-    debugPrint('[AuthApi] GET /auth/challenge for $path');
     final challenge = await _controller.get(
       '/auth/challenge',
       decoder: (data) => AuthChallenge.fromJson(data as Map<String, dynamic>),
     );
-    debugPrint('[AuthApi] challenge received; encrypting $path payload');
     // 密码只存在于本地变量及待加密 payload，不会写入 Store 或日志。
     final payload = jsonEncode({
       'email': email,
@@ -77,16 +75,12 @@ class AuthApi {
     });
     // RSA-2048 + OAEP-SHA256 单次最多加密约 190 bytes；challenge 的 nonce
     // 已提供时效与防重放能力，因此不再叠加 timestamp / requestId。
-    debugPrint(
-        '[AuthApi] encrypted payload size=${utf8.encode(payload).length} bytes');
     final ciphertext = _encryptOaepSha256(payload, challenge.publicKey);
-    debugPrint('[AuthApi] POST $path with encrypted credentials');
     final tokens = await _controller.post(
       path,
       data: {'challengeId': challenge.challengeId, 'ciphertext': ciphertext},
       decoder: _tokens,
     );
-    debugPrint('[AuthApi] POST $path succeeded');
     return tokens;
   }
 

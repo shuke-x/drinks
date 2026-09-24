@@ -6,6 +6,12 @@ import 'package:flutter/material.dart';
 class AppType {
   AppType._();
 
+  static const _sansFallback = <String>[
+    'PingFang SC',
+    'Noto Sans CJK SC',
+    'sans-serif',
+  ];
+
   /// 语义化展示标题：全局只在这里维护 Fraunces 的标题规格。
   static TextStyle title({
     double size = 28,
@@ -31,6 +37,7 @@ class AppType {
   }) =>
       TextStyle(
         fontFamily: 'HankenGrotesk',
+        fontFamilyFallback: _sansFallback,
         fontSize: size,
         fontWeight: FontWeight.w400,
         color: color ?? Colors.white.withValues(alpha: .55),
@@ -78,19 +85,18 @@ class AppType {
         decorationColor: Colors.transparent,
       );
 
-  /// 酒的英文名称固定使用 Fraunces 花体，不受字号阈值影响。
+  /// 酒的英文名称沿用标题字体，主名称保持完整对比度。
   static TextStyle cocktailEnglish({
     double size = 16,
-    FontWeight weight = FontWeight.w600,
+    FontWeight weight = FontWeight.w500,
     Color? color,
-    double height = 1.05,
+    double height = 1.2,
   }) =>
       TextStyle(
         fontFamily: 'Fraunces',
         fontSize: size,
         fontWeight: weight,
-        fontStyle: FontStyle.italic,
-        color: color ?? Colors.white.withValues(alpha: .72),
+        color: color ?? Colors.white,
         height: height,
         decoration: TextDecoration.none,
         decorationColor: Colors.transparent,
@@ -106,6 +112,7 @@ class AppType {
   }) =>
       TextStyle(
         fontFamily: 'HankenGrotesk',
+        fontFamilyFallback: _sansFallback,
         fontSize: size,
         fontWeight: weight,
         color: color,
@@ -124,6 +131,7 @@ class AppType {
   }) =>
       TextStyle(
         fontFamily: 'DMMono',
+        fontFamilyFallback: _sansFallback,
         fontSize: size,
         fontWeight: weight,
         color: color,
@@ -140,6 +148,7 @@ class AppType {
   }) =>
       TextStyle(
         fontFamily: 'HankenGrotesk',
+        fontFamilyFallback: _sansFallback,
         fontSize: size,
         fontWeight: FontWeight.w600,
         color: color ?? Colors.white.withValues(alpha: .45),

@@ -9,9 +9,9 @@ Gradient drinkGrad(Color c) => RadialGradient(
       center: const Alignment(-0.44, -1.0),
       radius: 1.35,
       colors: [
-        c.withOpacity(0.88),
-        c.withOpacity(0.40),
-        Colors.white.withOpacity(0.05),
+        c.withValues(alpha: 0.88),
+        c.withValues(alpha: 0.40),
+        Colors.white.withValues(alpha: 0.05),
       ],
       stops: const [0.0, 0.42, 1.0],
     );
@@ -20,9 +20,9 @@ Gradient drinkGrad(Color c) => RadialGradient(
 /// radial-gradient(circle, {hex}ee 0%, {hex}33 60%, transparent 72%)
 Gradient drinkOrb(Color c) => RadialGradient(
       colors: [
-        c.withOpacity(0.93),
-        c.withOpacity(0.20),
-        c.withOpacity(0.0),
+        c.withValues(alpha: 0.93),
+        c.withValues(alpha: 0.20),
+        c.withValues(alpha: 0.0),
       ],
       stops: const [0.0, 0.60, 0.72],
     );

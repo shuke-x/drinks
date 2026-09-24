@@ -24,6 +24,7 @@ class DeckCardTransform extends StatelessWidget {
     required this.drink,
     required this.t,
     required this.stageWidth,
+    this.stageHeight,
     required this.landed,
     this.engaged = false,
     this.onTap,
@@ -32,6 +33,7 @@ class DeckCardTransform extends StatelessWidget {
   final Cocktail drink;
   final double t;
   final double stageWidth;
+  final double? stageHeight;
   final bool landed;
   final bool engaged;
   final VoidCallback? onTap;
@@ -55,12 +57,21 @@ class DeckCardTransform extends StatelessWidget {
     final clamped = math.min(at, 3.0);
     final dim = clamped * 0.1; // 1 - brightness
     final nearCenter = at < 0.5;
+    final availableHeight = stageHeight;
+    final cardScale = availableHeight == null
+        ? 1.0
+        : math.min(1.0, math.max(0.48, (availableHeight - 48) / cardH));
+    final cardTop = availableHeight == null
+        ? 60.0
+        : math.max(
+            12.0,
+            math.min(60.0, (availableHeight - cardH * cardScale) / 2),
+          );
 
     final isCurrent = at < .5;
     return Positioned(
       left: stageWidth / 2 - cardW / 2,
-      // 卡组整体较原设计下移 20px。
-      top: 60,
+      top: cardTop,
       width: cardW,
       height: cardH,
       child: ExcludeSemantics(
@@ -71,170 +82,181 @@ class DeckCardTransform extends StatelessWidget {
               ? '$primaryName, ${drink.base}, ${drink.abv}% ABV'
               : null,
           hint: isCurrent ? context.l10n.viewRecipe : null,
-          child: Transform(
-            alignment: Alignment.center,
-            transform: Matrix4.translationValues(x, arc, 0)..rotateZ(rad),
-            child: AnimatedScale(
-              key: isCurrent ? const ValueKey('deck_card_motion') : null,
-              scale: engaged ? .982 : 1,
-              duration: MediaQuery.disableAnimationsOf(context)
-                  ? Duration.zero
-                  : const Duration(milliseconds: 140),
-              curve: Curves.easeOutCubic,
-              child: GestureDetector(
-                key: isCurrent ? const ValueKey('deck_card_current') : null,
-                excludeFromSemantics: true,
-                onTap: onTap,
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(30),
-                    boxShadow: [
-                      nearCenter
-                          ? BoxShadow(
-                              color: Colors.black.withOpacity(.55),
-                              blurRadius: 54,
-                              offset: const Offset(0, 26),
-                            )
-                          : BoxShadow(
-                              color: Colors.black.withOpacity(.35),
-                              blurRadius: 30,
-                              offset: const Offset(0, 14),
+          child: Transform.scale(
+            scale: cardScale,
+            alignment: Alignment.topCenter,
+            child: Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.translationValues(x, arc, 0)..rotateZ(rad),
+              child: AnimatedScale(
+                key: isCurrent ? const ValueKey('deck_card_motion') : null,
+                scale: engaged ? .982 : 1,
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 140),
+                curve: Curves.easeOutCubic,
+                child: GestureDetector(
+                  key: isCurrent ? const ValueKey('deck_card_current') : null,
+                  excludeFromSemantics: true,
+                  onTap: onTap,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        nearCenter
+                            ? BoxShadow(
+                                color: Colors.black.withValues(alpha: .55),
+                                blurRadius: 54,
+                                offset: const Offset(0, 26),
+                              )
+                            : BoxShadow(
+                                color: Colors.black.withValues(alpha: .35),
+                                blurRadius: 30,
+                                offset: const Offset(0, 14),
+                              ),
+                        // 命中金色光晕（原型 haloPulse 外发光）
+                        if (landed)
+                          const BoxShadow(
+                            color: Color(0x73C9A227),
+                            blurRadius: 60,
+                            spreadRadius: 12,
+                          ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(30),
+                      child: RepaintBoundary(
+                        child: Stack(fit: StackFit.expand, children: [
+                          // 底：毛玻璃 + 主题色渐变
+                          DecoratedBox(
+                            decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: .07)),
+                          ),
+                          CocktailCover(drink: drink),
+                          // 视差光球（34% 高度处，210px）
+                          if (drink.images.isEmpty)
+                            Positioned(
+                              left: cardW / 2 - 105,
+                              top: cardH * .34 - 105,
+                              width: 210,
+                              height: 210,
+                              child: Opacity(
+                                opacity: .85,
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: drinkOrb(drink.themeColor),
+                                  ),
+                                ),
+                              ),
                             ),
-                      // 命中金色光晕（原型 haloPulse 外发光）
-                      if (landed)
-                        const BoxShadow(
-                          color: Color(0x73C9A227),
-                          blurRadius: 60,
-                          spreadRadius: 12,
-                        ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(30),
-                    child: RepaintBoundary(
-                      child: Stack(fit: StackFit.expand, children: [
-                        // 底：毛玻璃 + 主题色渐变
-                        DecoratedBox(
-                          decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(.07)),
-                        ),
-                        CocktailCover(drink: drink),
-                        // 视差光球（34% 高度处，210px）
-                        if (drink.images.isEmpty)
-                          Positioned(
-                            left: cardW / 2 - 105,
-                            top: cardH * .34 - 105,
-                            width: 210,
-                            height: 210,
-                            child: Opacity(
-                              opacity: .85,
+                          // 玻璃圆环与默认光球成组展示。
+                          if (drink.images.isEmpty)
+                            Positioned(
+                              left: cardW / 2 - 63,
+                              top: cardH * .34 - 63,
+                              width: 126,
+                              height: 126,
                               child: DecoratedBox(
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  gradient: drinkOrb(drink.themeColor),
+                                  border: Border.all(
+                                      color:
+                                          Colors.white.withValues(alpha: .28)),
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      Colors.white.withValues(alpha: .22),
+                                      Colors.white.withValues(alpha: .04),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        // 玻璃圆环与默认光球成组展示。
-                        if (drink.images.isEmpty)
+                          // 底部渐隐 + 文案
                           Positioned(
-                            left: cardW / 2 - 63,
-                            top: cardH * .34 - 63,
-                            width: 126,
-                            height: 126,
-                            child: DecoratedBox(
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(22),
                               decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                    color: Colors.white.withOpacity(.28)),
                                 gradient: LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
+                                  begin: Alignment.bottomCenter,
+                                  end: Alignment.topCenter,
                                   colors: [
-                                    Colors.white.withOpacity(.22),
-                                    Colors.white.withOpacity(.04),
+                                    const Color(0xFF08070B)
+                                        .withValues(alpha: .78),
+                                    const Color(0xFF08070B)
+                                        .withValues(alpha: 0),
                                   ],
                                 ),
                               ),
-                            ),
-                          ),
-                        // 底部渐隐 + 文案
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          child: Container(
-                            padding: const EdgeInsets.all(22),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.bottomCenter,
-                                end: Alignment.topCenter,
-                                colors: [
-                                  const Color(0xFF08070B).withOpacity(.78),
-                                  const Color(0xFF08070B).withOpacity(0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    primaryName,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: languageCode == 'en'
+                                        ? AppType.cocktailEnglish(
+                                            size: 25, height: 1.1)
+                                        : AppType.serifZh(
+                                            size: 27, height: 1.15),
+                                  ),
+                                  if (alternateName != null) ...[
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      alternateName,
+                                      style: languageCode == 'en'
+                                          ? AppType.serifZh(
+                                              size: 13,
+                                              weight: FontWeight.w500,
+                                              color: Colors.white
+                                                  .withValues(alpha: .58),
+                                            )
+                                          : AppType.cocktailEnglish(
+                                              size: 14,
+                                              color: Colors.white
+                                                  .withValues(alpha: .62),
+                                            ),
+                                    ),
+                                  ],
+                                  const SizedBox(height: 12),
+                                  Wrap(spacing: 6, runSpacing: 6, children: [
+                                    for (final tip in drink.cardTips)
+                                      InfoPill(label: tip),
+                                    InfoPill(
+                                        label: '${drink.abv}%', mono: true),
+                                  ]),
                                 ],
                               ),
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  primaryName,
-                                  style: languageCode == 'en'
-                                      ? AppType.cocktailEnglish(
-                                          size: 29, height: 1.1)
-                                      : AppType.serifZh(size: 27, height: 1.15),
-                                ),
-                                if (alternateName != null) ...[
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    alternateName,
-                                    style: languageCode == 'en'
-                                        ? AppType.serifZh(
-                                            size: 13,
-                                            weight: FontWeight.w500,
-                                            color:
-                                                Colors.white.withOpacity(.58),
-                                          )
-                                        : AppType.cocktailEnglish(
-                                            size: 14,
-                                            color:
-                                                Colors.white.withOpacity(.62),
-                                          ),
-                                  ),
-                                ],
-                                const SizedBox(height: 12),
-                                Wrap(spacing: 6, runSpacing: 6, children: [
-                                  for (final tip in drink.cardTips)
-                                    InfoPill(label: tip),
-                                  InfoPill(label: '${drink.abv}%', mono: true),
-                                ]),
-                              ],
-                            ),
                           ),
-                        ),
-                        // 亮度衰减蒙层
-                        if (dim > 0)
-                          DecoratedBox(
+                          // 亮度衰减蒙层
+                          if (dim > 0)
+                            DecoratedBox(
+                              decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: dim)),
+                            ),
+                          // 卡片描边 + 命中金色描边
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 500),
                             decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(dim)),
-                          ),
-                        // 卡片描边 + 命中金色描边
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 500),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(30),
-                            border: Border.all(
-                              color: landed
-                                  ? AppColors.gold.withOpacity(.85)
-                                  : Colors.white.withOpacity(.12),
-                              width: landed ? 2 : 1,
+                              borderRadius: BorderRadius.circular(30),
+                              border: Border.all(
+                                color: landed
+                                    ? AppColors.gold.withValues(alpha: .85)
+                                    : Colors.white.withValues(alpha: .12),
+                                width: landed ? 2 : 1,
+                              ),
                             ),
                           ),
-                        ),
-                      ]),
+                        ]),
+                      ),
                     ),
                   ),
                 ),

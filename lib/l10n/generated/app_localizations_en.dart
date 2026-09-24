@@ -253,10 +253,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get next => 'Inspire';
 
   @override
+  String get records => 'Journal';
+
+  @override
+  String get recipes => 'Recipes';
+
+  @override
+  String get recommend => 'Flavor';
+
+  @override
   String get cocktails => 'Cellar';
 
   @override
   String get user => 'Profile';
+
+  @override
+  String get search => 'Search';
+
+  @override
+  String get searchCocktails => 'Search cocktails';
+
+  @override
+  String get searchCocktailsHint =>
+      'Search names, spirits, tags, or ingredients';
+
+  @override
+  String get searchNoResults => 'No matching cocktails';
+
+  @override
+  String get searchNoResultsHint => 'Try another name, spirit, or ingredient.';
 
   @override
   String get emptyCocktails => 'No cocktails here yet';
@@ -386,6 +411,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get flavorStory => 'FLAVOR STORY';
+
+  @override
+  String get flavorImpression => 'FLAVOR IMPRESSION';
 
   @override
   String get tonightThisOne => 'This is the one';
@@ -592,4 +620,61 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get removeIngredient => 'Remove ingredient';
+
+  @override
+  String get photoAccessDenied =>
+      'Photo access is unavailable. Allow access in Settings, then try again.';
+
+  @override
+  String get photoReadFailed =>
+      'Could not read the photo. Please choose it again.';
+
+  @override
+  String get privacyAndUse => 'Privacy and use';
+
+  @override
+  String get privacyAndUseSubtitle =>
+      'Data use, age requirements, and account controls';
+
+  @override
+  String get privacyDataTitle => 'Data we process';
+
+  @override
+  String get privacyDataBody =>
+      'Account features use your email, nickname, and account ID. Your uploaded avatar, recipes, favorites, and tasting records are sent to the server for storage and synchronization. Records may include photos, venues, prices, and notes. Search terms are sent to the server to retrieve results.';
+
+  @override
+  String get privacyPhotosTitle => 'Photo selection';
+
+  @override
+  String get privacyPhotosBody =>
+      'The system photo picker opens when you choose to add photos to your profile, recipes, or tasting records. Cancelling preserves your existing input.';
+
+  @override
+  String get privacyDiagnosticsTitle => 'Error diagnostics';
+
+  @override
+  String get privacyDiagnosticsBody =>
+      'App error diagnostics send only an error category, a grouping identifier derived from code locations, and the platform. They do not include tokens, email addresses, notes, photos, or raw exception content.';
+
+  @override
+  String get privacyAccountTitle => 'Account and content';
+
+  @override
+  String get privacyAccountBody =>
+      'You can permanently delete your account from your profile details. Published recipes may remain with an anonymous author; read the confirmation before deleting. Avoid including private information in public content.';
+
+  @override
+  String get responsibleUseTitle => 'Age and responsible use';
+
+  @override
+  String get responsibleUseBody =>
+      'This app is intended for users aged 18 and over. Follow local requirements where the legal drinking age is higher. Drink responsibly and never drive after drinking. Recipes are provided for reference.';
+
+  @override
+  String get privacyPendingTitle => 'Support and reports';
+
+  @override
+  String get privacyPendingBody =>
+      'For support, privacy requests, and content reports: shybro027@gmail.com. The full privacy policy and terms will be provided before public release.';
 }

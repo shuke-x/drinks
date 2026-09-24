@@ -109,7 +109,18 @@ class _AppleLiquidGlassButtonState extends State<AppleLiquidGlassButton> {
       'tonight_drinks/apple_liquid_glass_button/$viewId',
     );
     channel.setMethodCallHandler((call) async {
-      if (call.method == 'tap' && mounted) widget.onPressed?.call();
+      if (call.method != 'tap' || !mounted) return;
+      final onPressed = widget.onPressed;
+      if (onPressed == null) return;
+
+      // Let the platform-view method call finish before navigation can hide
+      // or dispose the native button. This is especially important for the
+      // retained bottom controls, which are made Offstage as soon as a
+      // secondary route starts its Cupertino transition.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) onPressed();
+      });
+      WidgetsBinding.instance.scheduleFrame();
     });
     _channel = channel;
     channel.invokeMethod<void>('update', _configuration);

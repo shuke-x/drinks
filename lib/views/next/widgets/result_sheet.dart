@@ -44,8 +44,8 @@ class ResultSheet extends StatelessWidget {
             padding: const EdgeInsets.all(22),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(30),
-              color: Colors.white.withOpacity(.11),
-              border: Border.all(color: Colors.white.withOpacity(.2)),
+              color: Colors.white.withValues(alpha: .11),
+              border: Border.all(color: Colors.white.withValues(alpha: .2)),
             ),
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -56,13 +56,13 @@ class ResultSheet extends StatelessWidget {
                 Text(context.l10n.tonightThisOne,
                     style: AppType.eyebrow(
                         size: 11.5,
-                        color: const Color(0xFFEBEBF5).withOpacity(.85))),
+                        color: const Color(0xFFEBEBF5).withValues(alpha: .85))),
               ]),
               const SizedBox(height: 12),
               Text(
                 drink.nameFor(languageCode),
                 style: languageCode == 'en'
-                    ? AppType.cocktailEnglish(size: 28, height: 1.15)
+                    ? AppType.cocktailEnglish(size: 24, height: 1.15)
                     : AppType.serifZh(size: 26, height: 1.2),
               ),
               const SizedBox(height: 9),
@@ -70,7 +70,7 @@ class ResultSheet extends StatelessWidget {
                 context.l10n.resultFlavor(drink.flavor, drink.base),
                 style: AppType.sans(
                     size: 13.5,
-                    color: Colors.white.withOpacity(.66),
+                    color: Colors.white.withValues(alpha: .66),
                     height: 1.6),
               ),
               const SizedBox(height: 18),
@@ -83,7 +83,7 @@ class ResultSheet extends StatelessWidget {
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(99),
-                        color: Colors.white.withOpacity(.95),
+                        color: Colors.white.withValues(alpha: .95),
                       ),
                       child: Text(context.l10n.viewRecipe,
                           style: AppType.sans(
@@ -103,9 +103,9 @@ class ResultSheet extends StatelessWidget {
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(99),
-                        color: Colors.white.withOpacity(.10),
-                        border:
-                            Border.all(color: Colors.white.withOpacity(.18)),
+                        color: Colors.white.withValues(alpha: .10),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: .18)),
                       ),
                       child: Text(context.l10n.drawAgain,
                           style: AppType.sans(

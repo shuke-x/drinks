@@ -32,10 +32,11 @@ class AppEmptyView extends StatelessWidget {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white.withOpacity(.08),
-              border: Border.all(color: Colors.white.withOpacity(.14)),
+              color: Colors.white.withValues(alpha: .08),
+              border: Border.all(color: Colors.white.withValues(alpha: .14)),
             ),
-            child: Icon(icon, size: 24, color: Colors.white.withOpacity(.62)),
+            child: Icon(icon,
+                size: 24, color: Colors.white.withValues(alpha: .62)),
           ),
           const SizedBox(height: 14),
           Text(title, style: AppType.serifZh(size: 17)),
@@ -45,7 +46,7 @@ class AppEmptyView extends StatelessWidget {
             textAlign: TextAlign.center,
             style: AppType.sans(
               size: 12.5,
-              color: Colors.white.withOpacity(.45),
+              color: Colors.white.withValues(alpha: .45),
               height: 1.5,
             ),
           ),

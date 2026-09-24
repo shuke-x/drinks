@@ -42,7 +42,7 @@ class GlassCard extends StatelessWidget {
         boxShadow: shadow
             ? [
                 BoxShadow(
-                  color: Colors.black.withOpacity(.42),
+                  color: Colors.black.withValues(alpha: .42),
                   blurRadius: 44,
                   offset: const Offset(0, 18),
                 ),
@@ -56,10 +56,10 @@ class GlassCard extends StatelessWidget {
           child: Container(
             padding: padding,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(fillOpacity),
+              color: Colors.white.withValues(alpha: fillOpacity),
               borderRadius: BorderRadius.circular(radius),
-              border:
-                  Border.all(color: Colors.white.withOpacity(borderOpacity)),
+              border: Border.all(
+                  color: Colors.white.withValues(alpha: borderOpacity)),
             ),
             child: child,
           ),
@@ -90,8 +90,9 @@ class GlassChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg =
-        selected ? const Color(0xFF0D0B10) : Colors.white.withOpacity(.75);
+    final fg = selected
+        ? const Color(0xFF0D0B10)
+        : Colors.white.withValues(alpha: .75);
     final style = mono
         ? AppType.mono(size: fontSize, color: fg)
         : AppType.sans(
@@ -122,11 +123,11 @@ class GlassChip extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(99),
             color: selected
-                ? Colors.white.withOpacity(.94)
-                : Colors.white.withOpacity(.08),
+                ? Colors.white.withValues(alpha: .94)
+                : Colors.white.withValues(alpha: .08),
             border: Border.all(
               color: selected
-                  ? Colors.white.withOpacity(.94)
+                  ? Colors.white.withValues(alpha: .94)
                   : AppColors.glassBorder,
             ),
           ),
@@ -160,14 +161,14 @@ class InfoPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = textColor ?? Colors.white.withOpacity(.85);
+    final fg = textColor ?? Colors.white.withValues(alpha: .85);
     return Container(
       padding: padding,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(99),
-        color: fill ?? Colors.white.withOpacity(.12),
+        color: fill ?? Colors.white.withValues(alpha: .12),
         border: Border.all(
-          color: borderColor ?? Colors.white.withOpacity(.16),
+          color: borderColor ?? Colors.white.withValues(alpha: .16),
         ),
       ),
       child: Text(

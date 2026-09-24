@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -6,18 +7,48 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../components/app_loading_view.dart';
 import '../../components/cocktail_cover.dart';
 import '../../components/frosted_page_overlay.dart';
+import '../../components/deck_card_list.dart';
 import '../../components/glass.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_typography.dart';
 import '../../stores/cocktail_store.dart';
 import '../../stores/settings_store.dart';
 import '../../stores/user_store.dart';
+import '../../stores/deck_store.dart';
 import '../../l10n/l10n.dart';
 
-class FavoritesView extends ConsumerWidget {
+class FavoritesView extends ConsumerStatefulWidget {
   const FavoritesView({super.key});
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<FavoritesView> createState() => _FavoritesViewState();
+}
+
+class _FavoritesViewState extends ConsumerState<FavoritesView>
+    with SingleTickerProviderStateMixin {
+  late final Ticker _ticker;
+  final DeckController _deck = DeckController();
+  Duration _last = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = createTicker((elapsed) {
+      final dt = (elapsed - _last).inMicroseconds / 1e6;
+      _last = elapsed;
+      _deck.tick(dt);
+    })
+      ..start();
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    _deck.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final languageCode = Localizations.localeOf(context).languageCode;
     final user = ref.watch(userProvider);
     final drinks = ref
@@ -34,9 +65,8 @@ class FavoritesView extends ConsumerWidget {
       }
     });
     if (builtin.isLoading) {
-      return Scaffold(
-          backgroundColor: const Color(0xB80D0B10),
-          body: const AppLoadingView());
+      return const Scaffold(
+          backgroundColor: Color(0xB80D0B10), body: AppLoadingView());
     }
     return Scaffold(
         backgroundColor: Colors.transparent,
@@ -68,7 +98,8 @@ class FavoritesView extends ConsumerWidget {
                         padding: const EdgeInsets.symmetric(vertical: 22),
                         child: Column(children: [
                           Icon(PhosphorIcons.heart(),
-                              color: Colors.white.withOpacity(.45), size: 30),
+                              color: Colors.white.withValues(alpha: .45),
+                              size: 30),
                           const SizedBox(height: 12),
                           Text(context.l10n.noFavorites,
                               style: AppType.serifZh(size: 17)),
@@ -76,44 +107,79 @@ class FavoritesView extends ConsumerWidget {
                           Text(context.l10n.favoriteEmptyHint,
                               style: AppType.sans(
                                   size: 12.5,
-                                  color: Colors.white.withOpacity(.45)))
+                                  color: Colors.white.withValues(alpha: .45)))
                         ]))),
-              for (final drink in drinks)
+              if (drinks.length > 3)
                 Padding(
-                    padding: const EdgeInsets.only(bottom: 11),
-                    child: PressScale(
-                        onTap: () => context.push(
+                  padding: const EdgeInsets.only(bottom: 18),
+                  child: SizedBox(
+                    height: 570,
+                    child: AnimatedBuilder(
+                      animation: _deck,
+                      builder: (context, child) => GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onHorizontalDragStart: (details) =>
+                            _deck.onDragStart(details.globalPosition.dx),
+                        onHorizontalDragUpdate: (details) =>
+                            _deck.onDragUpdate(details.globalPosition.dx),
+                        onHorizontalDragEnd: (details) => _deck.onDragEnd(
+                            details.primaryVelocity ?? 0,
+                            MediaQuery.disableAnimationsOf(context)),
+                        child: LayoutBuilder(
+                          builder: (context, constraints) => DeckCardList(
+                            drinks: drinks,
+                            deck: _deck,
+                            width: constraints.maxWidth,
+                            onOpen: (drink) => context.push(
                               '/detail/${drink.id}',
                               extra: drink,
                             ),
-                        child: GlassCard(
-                            child: Row(children: [
-                          SizedBox(
-                              width: 54,
-                              height: 54,
-                              child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(15),
-                                  child: CocktailCover(drink: drink))),
-                          const SizedBox(width: 13),
-                          Expanded(
-                              child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                Text(
-                                  drink.nameFor(languageCode),
-                                  style: languageCode == 'en'
-                                      ? AppType.cocktailEnglish(size: 17)
-                                      : AppType.serifZh(size: 16),
-                                ),
-                                const SizedBox(height: 4),
-                                Text('${drink.base} · ${drink.abv}% ABV',
-                                    style: AppType.sans(
-                                        size: 11.5,
-                                        color: Colors.white.withOpacity(.5)))
-                              ])),
-                          Icon(PhosphorIcons.caretRight(),
-                              color: Colors.white.withOpacity(.4), size: 17)
-                        ])))),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+              else
+                for (final drink in drinks)
+                  Padding(
+                      padding: const EdgeInsets.only(bottom: 11),
+                      child: PressScale(
+                          onTap: () => context.push(
+                                '/detail/${drink.id}',
+                                extra: drink,
+                              ),
+                          child: GlassCard(
+                              child: Row(children: [
+                            SizedBox(
+                                width: 54,
+                                height: 54,
+                                child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(15),
+                                    child: CocktailCover(drink: drink))),
+                            const SizedBox(width: 13),
+                            Expanded(
+                                child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                  Text(
+                                    drink.nameFor(languageCode),
+                                    style: languageCode == 'en'
+                                        ? AppType.cocktailEnglish(size: 15)
+                                        : AppType.serifZh(size: 16),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text('${drink.base} · ${drink.abv}% ABV',
+                                      style: AppType.sans(
+                                          size: 11.5,
+                                          color: Colors.white
+                                              .withValues(alpha: .5)))
+                                ])),
+                            Icon(PhosphorIcons.caretRight(),
+                                color: Colors.white.withValues(alpha: .4),
+                                size: 17)
+                          ])))),
             ])));
   }
 }

@@ -554,6 +554,24 @@ abstract class AppLocalizations {
   /// **'Inspire'**
   String get next;
 
+  /// No description provided for @records.
+  ///
+  /// In en, this message translates to:
+  /// **'Journal'**
+  String get records;
+
+  /// No description provided for @recipes.
+  ///
+  /// In en, this message translates to:
+  /// **'Recipes'**
+  String get recipes;
+
+  /// No description provided for @recommend.
+  ///
+  /// In en, this message translates to:
+  /// **'Flavor'**
+  String get recommend;
+
   /// No description provided for @cocktails.
   ///
   /// In en, this message translates to:
@@ -565,6 +583,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Profile'**
   String get user;
+
+  /// No description provided for @search.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get search;
+
+  /// No description provided for @searchCocktails.
+  ///
+  /// In en, this message translates to:
+  /// **'Search cocktails'**
+  String get searchCocktails;
+
+  /// No description provided for @searchCocktailsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search names, spirits, tags, or ingredients'**
+  String get searchCocktailsHint;
+
+  /// No description provided for @searchNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching cocktails'**
+  String get searchNoResults;
+
+  /// No description provided for @searchNoResultsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Try another name, spirit, or ingredient.'**
+  String get searchNoResultsHint;
 
   /// No description provided for @emptyCocktails.
   ///
@@ -799,6 +847,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'FLAVOR STORY'**
   String get flavorStory;
+
+  /// No description provided for @flavorImpression.
+  ///
+  /// In en, this message translates to:
+  /// **'FLAVOR IMPRESSION'**
+  String get flavorImpression;
 
   /// No description provided for @tonightThisOne.
   ///
@@ -1189,6 +1243,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Remove ingredient'**
   String get removeIngredient;
+
+  /// No description provided for @photoAccessDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo access is unavailable. Allow access in Settings, then try again.'**
+  String get photoAccessDenied;
+
+  /// No description provided for @photoReadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read the photo. Please choose it again.'**
+  String get photoReadFailed;
+
+  /// No description provided for @privacyAndUse.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy and use'**
+  String get privacyAndUse;
+
+  /// No description provided for @privacyAndUseSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Data use, age requirements, and account controls'**
+  String get privacyAndUseSubtitle;
+
+  /// No description provided for @privacyDataTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Data we process'**
+  String get privacyDataTitle;
+
+  /// No description provided for @privacyDataBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Account features use your email, nickname, and account ID. Your uploaded avatar, recipes, favorites, and tasting records are sent to the server for storage and synchronization. Records may include photos, venues, prices, and notes. Search terms are sent to the server to retrieve results.'**
+  String get privacyDataBody;
+
+  /// No description provided for @privacyPhotosTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo selection'**
+  String get privacyPhotosTitle;
+
+  /// No description provided for @privacyPhotosBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The system photo picker opens when you choose to add photos to your profile, recipes, or tasting records. Cancelling preserves your existing input.'**
+  String get privacyPhotosBody;
+
+  /// No description provided for @privacyDiagnosticsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Error diagnostics'**
+  String get privacyDiagnosticsTitle;
+
+  /// No description provided for @privacyDiagnosticsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'App error diagnostics send only an error category, a grouping identifier derived from code locations, and the platform. They do not include tokens, email addresses, notes, photos, or raw exception content.'**
+  String get privacyDiagnosticsBody;
+
+  /// No description provided for @privacyAccountTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Account and content'**
+  String get privacyAccountTitle;
+
+  /// No description provided for @privacyAccountBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You can permanently delete your account from your profile details. Published recipes may remain with an anonymous author; read the confirmation before deleting. Avoid including private information in public content.'**
+  String get privacyAccountBody;
+
+  /// No description provided for @responsibleUseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Age and responsible use'**
+  String get responsibleUseTitle;
+
+  /// No description provided for @responsibleUseBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This app is intended for users aged 18 and over. Follow local requirements where the legal drinking age is higher. Drink responsibly and never drive after drinking. Recipes are provided for reference.'**
+  String get responsibleUseBody;
+
+  /// No description provided for @privacyPendingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Support and reports'**
+  String get privacyPendingTitle;
+
+  /// No description provided for @privacyPendingBody.
+  ///
+  /// In en, this message translates to:
+  /// **'For support, privacy requests, and content reports: shybro027@gmail.com. The full privacy policy and terms will be provided before public release.'**
+  String get privacyPendingBody;
 }
 
 class _AppLocalizationsDelegate

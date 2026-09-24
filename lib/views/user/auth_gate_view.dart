@@ -19,7 +19,8 @@ import '../../l10n/l10n.dart';
 
 /// 登录 / 注册页：一张留在吧台上的暖色小卡，而不是高对比的系统弹层。
 class AuthGateView extends ConsumerStatefulWidget {
-  const AuthGateView({super.key});
+  const AuthGateView({super.key, this.returnTo});
+  final String? returnTo;
 
   @override
   ConsumerState<AuthGateView> createState() => _AuthGateViewState();
@@ -46,46 +47,36 @@ class _AuthGateViewState extends ConsumerState<AuthGateView> {
 
   Future<void> _submit() async {
     if (_submitting) {
-      debugPrint('[AuthGate] submit ignored: request already in progress');
       return;
     }
     final toast = ref.read(toastProvider.notifier);
     final l10n = context.l10n;
     final email = _email.text.trim();
-    final mode = _register ? 'register' : 'login';
-    debugPrint('[AuthGate] $mode tapped; emailEntered=${email.isNotEmpty}; '
-        'passwordLength=${_pw.text.length}; nameEntered=${_name.text.trim().isNotEmpty}');
     if (!RegExp(r'.+@.+\..+').hasMatch(email)) {
-      debugPrint('[AuthGate] $mode blocked: invalid email');
       toast.show(l10n.validEmailRequired);
       return;
     }
     if (_pw.text.length < 6) {
-      debugPrint('[AuthGate] $mode blocked: password shorter than 6');
       toast.show(l10n.passwordSixCharacters);
       return;
     }
     if (_register && _name.text.trim().isEmpty) {
-      debugPrint('[AuthGate] register blocked: missing nickname');
       toast.show(l10n.nicknameRequired);
       return;
     }
     if (_register &&
         !RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$')
             .hasMatch(_pw.text)) {
-      debugPrint('[AuthGate] register blocked: password policy not satisfied');
       toast.show(l10n.passwordPolicy);
       return;
     }
     final name = _register ? _name.text.trim() : email.split('@').first;
     setState(() => _submitting = true);
     try {
-      debugPrint('[AuthGate] requesting $mode API');
       final auth = ref.read(authApiProvider);
       final tokens = _register
           ? await auth.register(email: email, password: _pw.text, name: name)
           : await auth.login(email: email, password: _pw.text);
-      debugPrint('[AuthGate] $mode API succeeded; saving session');
       await TokenStorage.instance.save(tokens);
       await ref
           .read(userProvider.notifier)
@@ -95,22 +86,23 @@ class _AuthGateViewState extends ConsumerState<AuthGateView> {
       _pw.clear();
       toast.show(_register ? l10n.registerWelcome : l10n.welcomeBack(name));
       if (mounted) {
-        final destination = _register ? '/home' : '/profile';
-        debugPrint('[AuthGate] session saved; navigating to $destination');
+        final requested = widget.returnTo;
+        final allowed = requested != null &&
+            (const ['/recipes', '/private', '/records', '/records/new']
+                    .contains(requested) ||
+                RegExp(r'^/detail/[a-zA-Z0-9_-]+$').hasMatch(requested));
+        final destination =
+            allowed ? requested : (_register ? '/home' : '/profile');
         context.go(destination);
       }
     } on ApiException catch (error) {
-      debugPrint('[AuthGate] $mode API error: ${error.message}');
       _endSubmitting();
       toast.show(error.message);
-    } catch (error, stackTrace) {
-      debugPrint('[AuthGate] $mode unexpected error: $error');
-      debugPrintStack(stackTrace: stackTrace);
+    } catch (_) {
       _endSubmitting();
       toast.show(l10n.authFailed);
     } finally {
       _endSubmitting();
-      debugPrint('[AuthGate] $mode request finished');
     }
   }
 
@@ -150,8 +142,6 @@ class _AuthGateViewState extends ConsumerState<AuthGateView> {
                             email: _email,
                             password: _pw,
                             onModeChanged: (value) {
-                              debugPrint('[AuthGate] mode changed to '
-                                  '${value ? 'register' : 'login'}');
                               setState(() => _register = value);
                             },
                             onSubmit: _submit,
@@ -252,20 +242,19 @@ class _AuthCard extends StatelessWidget {
                 children: [
                   _AuthSegmented(register: register, onChanged: onModeChanged),
                   const SizedBox(height: 22),
-                  AnimatedSize(
-                    duration: const Duration(milliseconds: 420),
-                    curve: const Cubic(.22, .8, .2, 1),
-                    child: register
-                        ? Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: _GateField(
-                              controller: name,
-                              hint: context.l10n.nickname,
-                              icon: PhosphorIcons.user(),
-                              autofillHints: const [AutofillHints.name],
-                              textCapitalization: TextCapitalization.words,
-                            ))
-                        : const SizedBox.shrink(),
+                  _AuthModeReveal(
+                    key: const ValueKey('auth_name_reveal'),
+                    visible: register,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _GateField(
+                        controller: name,
+                        hint: context.l10n.nickname,
+                        icon: PhosphorIcons.user(),
+                        autofillHints: const [AutofillHints.name],
+                        textCapitalization: TextCapitalization.words,
+                      ),
+                    ),
                   ),
                   _GateField(
                       controller: email,
@@ -292,14 +281,18 @@ class _AuthCard extends StatelessWidget {
                       autocorrect: false,
                       enableSuggestions: false,
                       onSubmitted: (_) => onSubmit()),
-                  if (register) ...[
-                    const SizedBox(height: 10),
-                    Text(context.l10n.passwordPolicy,
-                        style: AppType.sans(
-                            size: 11.5,
-                            color: const Color(0xFFEBEBF5)
-                                .withValues(alpha: .45))),
-                  ],
+                  _AuthModeReveal(
+                    key: const ValueKey('auth_password_policy_reveal'),
+                    visible: register,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: Text(context.l10n.passwordPolicy,
+                          style: AppType.sans(
+                              size: 11.5,
+                              color: const Color(0xFFEBEBF5)
+                                  .withValues(alpha: .45))),
+                    ),
+                  ),
                   const SizedBox(height: 22),
                   PressScale(
                     onTap: onSubmit,
@@ -368,6 +361,105 @@ class _AuthCard extends StatelessWidget {
       );
 }
 
+class _AuthModeReveal extends StatefulWidget {
+  const _AuthModeReveal({
+    super.key,
+    required this.visible,
+    required this.child,
+  });
+
+  final bool visible;
+  final Widget child;
+
+  @override
+  State<_AuthModeReveal> createState() => _AuthModeRevealState();
+}
+
+class _AuthModeRevealState extends State<_AuthModeReveal>
+    with SingleTickerProviderStateMixin {
+  static const _duration = Duration(milliseconds: 420);
+
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+  bool _reduceMotion = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: _duration,
+      reverseDuration: _duration,
+      value: widget.visible ? 1 : 0,
+    );
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: AppMotion.overlayEnter,
+      reverseCurve: AppMotion.overlayExit,
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    if (reduceMotion && !_reduceMotion) {
+      _controller.value = widget.visible ? 1 : 0;
+    }
+    _reduceMotion = reduceMotion;
+  }
+
+  @override
+  void didUpdateWidget(covariant _AuthModeReveal oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.visible == widget.visible) return;
+    if (_reduceMotion) {
+      _controller.value = widget.visible ? 1 : 0;
+    } else if (widget.visible) {
+      _controller.forward();
+    } else {
+      _controller.reverse();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation: _animation,
+        builder: (context, child) {
+          if (!widget.visible && _controller.isDismissed) {
+            return const SizedBox.shrink();
+          }
+          final progress = _animation.value;
+          return ClipRect(
+            child: Align(
+              alignment: Alignment.topCenter,
+              heightFactor: progress,
+              child: IgnorePointer(
+                ignoring: !widget.visible,
+                child: ExcludeSemantics(
+                  excluding: !widget.visible,
+                  child: Opacity(
+                    opacity: progress,
+                    child: Transform.translate(
+                      offset: Offset(0, -12 * (1 - progress)),
+                      child: child,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+        child: widget.child,
+      );
+}
+
 class _GateBackground extends StatelessWidget {
   const _GateBackground();
   @override
@@ -427,8 +519,8 @@ class _AuthSegmented extends StatelessWidget {
           AnimatedAlign(
               alignment:
                   register ? Alignment.centerRight : Alignment.centerLeft,
-              duration: const Duration(milliseconds: 380),
-              curve: const Cubic(.22, .8, .2, 1),
+              duration: const Duration(milliseconds: 420),
+              curve: AppMotion.overlayEnter,
               child: FractionallySizedBox(
                   widthFactor: .5,
                   heightFactor: 1,

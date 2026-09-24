@@ -2,13 +2,20 @@ import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
 
-/// 间距 tokens（4pt 栅格；页面水平内边距 18 取自原型）
+/// 应用间距 tokens；页面内容与悬浮导航使用独立配置。
 class AppSpacing {
   AppSpacing._();
-  static const double gutter = 18;
 
-  /// 悬浮 TabBar 与底部安全区之间的视觉间距。
-  static const double tabBarBottom = 14;
+  /// 页面内容与屏幕左右边缘的通用间距。
+  static const double gutter = 12;
+
+  /// 【TabBar 横向位置】悬浮 TabBar 与屏幕左右边缘的独立距离。
+  ///
+  /// 不要复用 [gutter]：页面内容间距与底部导航宽度应可分别调整。
+  static const double tabBarHorizontal = 12;
+
+  /// 【TabBar 底部位置】安全区上方额外保留的视觉间距。
+  static const double tabBarBottom = 10;
 }
 
 class AppTheme {

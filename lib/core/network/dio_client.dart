@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import '../config/env.dart';
+import '../telemetry/app_telemetry.dart';
 import '../auth/token_storage.dart';
 import 'api_page.dart';
 import 'api_exception.dart';
@@ -55,17 +56,23 @@ class DioClient {
           request.extra[_retriedKey] = true;
           request.headers['Authorization'] = 'Bearer ${tokens.accessToken}';
           handler.resolve(await _dio.fetch<dynamic>(request));
+        } on DioException catch (refreshError) {
+          // A temporary outage must not destroy a valid refresh token.
+          if (refreshError.response?.statusCode == 401 ||
+              refreshError.response?.statusCode == 403) {
+            await _expireSession();
+          }
+          handler.next(refreshError);
         } catch (_) {
-          await _expireSession();
           handler.next(error);
         }
       },
     ));
 
-    _dio.interceptors.add(LogInterceptor(
-      requestBody: Env.flavor != Flavor.prod,
-      responseBody: Env.flavor != Flavor.prod,
-    ));
+    _dio.interceptors.add(InterceptorsWrapper(onError: (error, handler) {
+      AppTelemetry.network(error);
+      handler.next(error);
+    }));
   }
 
   @visibleForTesting

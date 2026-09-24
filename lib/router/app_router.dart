@@ -5,15 +5,23 @@ import '../models/cocktail.dart';
 import '../core/navigation/root_tab_bar_composition.dart';
 import '../views/detail/detail_view.dart';
 import '../views/home/home_view.dart';
-import '../views/next/next_view.dart';
+import '../models/drink_record.dart';
+import '../views/records/records_view.dart';
+import '../views/records/record_share_view.dart';
+import '../views/records/record_editor_view.dart';
+import '../views/records/record_detail_view.dart';
+import '../views/recipes/recipes_view.dart';
+import '../views/recommendation/recommendation_view.dart';
 import '../views/shell/app_shell.dart';
 import '../views/system/system_view.dart';
+import '../views/system/privacy_view.dart';
 import '../views/upload/upload_view.dart';
 import '../views/user/user_view.dart';
 import '../views/user/profile_detail_view.dart';
 import '../views/user/auth_gate_view.dart';
 import '../views/favorites/favorites_view.dart';
 import '../views/private/private_view.dart';
+import '../views/search/search_view.dart';
 
 Page<void> _cupertinoSecondaryPage(GoRouterState state, Widget child) {
   return _SecondaryCupertinoPage<void>(
@@ -136,12 +144,13 @@ final appRouter = GoRouter(
           pageBuilder: (context, state) => _tabPage(state, const HomeView()),
         ),
         GoRoute(
-          path: '/next',
-          pageBuilder: (context, state) => _tabPage(state, const NextView()),
+          path: '/recommend',
+          pageBuilder: (context, state) =>
+              _tabPage(state, const RecommendationView()),
         ),
         GoRoute(
-          path: '/private',
-          pageBuilder: (context, state) => _tabPage(state, const PrivateView()),
+          path: '/recipes',
+          pageBuilder: (context, state) => _tabPage(state, const RecipesView()),
         ),
         GoRoute(
           path: '/profile',
@@ -149,6 +158,45 @@ final appRouter = GoRouter(
         ),
       ],
     ),
+    GoRoute(
+      path: '/privacy',
+      pageBuilder: (context, state) =>
+          _cupertinoSecondaryPage(state, const PrivacyView()),
+    ),
+    GoRoute(path: '/next', redirect: (_, __) => '/records'),
+    GoRoute(
+      path: '/records',
+      pageBuilder: (context, state) => _cupertinoSecondaryPage(
+        state,
+        const RecordsView(),
+      ),
+    ),
+    GoRoute(
+        path: '/private',
+        pageBuilder: (context, state) =>
+            _cupertinoSecondaryPage(state, const PrivateView())),
+    GoRoute(
+        path: '/records/new',
+        pageBuilder: (context, state) => _cupertinoSecondaryPage(
+            state,
+            RecordEditorView(
+                reference:
+                    state.extra is Cocktail ? state.extra as Cocktail : null,
+                template: state.extra is DrinkRecord
+                    ? state.extra as DrinkRecord
+                    : null))),
+    GoRoute(
+        path: '/records/view/:id',
+        pageBuilder: (context, state) => _cupertinoSecondaryPage(
+            state, RecordDetailView(id: state.pathParameters['id']!))),
+    GoRoute(
+        path: '/records/share/:id',
+        pageBuilder: (context, state) => _cupertinoSecondaryPage(
+            state, RecordShareView(id: state.pathParameters['id']!))),
+    GoRoute(
+        path: '/records/edit/:id',
+        pageBuilder: (context, state) => _cupertinoSecondaryPage(state,
+            RecordDetailView(id: state.pathParameters['id']!, edit: true))),
     // 详情：不透明二级页，不透出底层页面。
     GoRoute(
       path: '/detail/:id',
@@ -163,10 +211,28 @@ final appRouter = GoRouter(
       ),
     ),
     GoRoute(
+      path: '/recommend/:flavorId',
+      pageBuilder: (context, state) => _cupertinoSecondaryPage(
+        state,
+        FlavorRecommendationView(
+          flavorId: state.pathParameters['flavorId']!,
+          initialFeaturedIndex:
+              int.tryParse(state.uri.queryParameters['pick'] ?? '') ?? 0,
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/search',
+      pageBuilder: (context, state) => _cupertinoSecondaryPage(
+          state,
+          SearchView(
+              selectRecipe: state.uri.queryParameters['select'] == 'recipe')),
+    ),
+    GoRoute(
       path: '/login',
       pageBuilder: (context, state) => _cupertinoSecondaryPage(
         state,
-        const AuthGateView(),
+        AuthGateView(returnTo: state.uri.queryParameters['returnTo']),
       ),
     ),
     GoRoute(
@@ -203,8 +269,10 @@ final appRouter = GoRouter(
 
 /// 由路由路径得出当前 Tab 下标。
 int tabIndexOf(String location) {
-  if (location.startsWith('/next')) return 1;
-  if (location.startsWith('/private')) return 2;
+  if (location.startsWith('/recommend')) return 1;
+  if (location.startsWith('/recipes')) return 2;
+  if (location.startsWith('/records') || location.startsWith('/next')) return 3;
+  if (location.startsWith('/private')) return 3;
   if (location.startsWith('/profile')) return 3;
   return 0;
 }

@@ -21,7 +21,6 @@ class FeaturedCard extends StatelessWidget {
     final c = drink.themeColor;
     final languageCode = Localizations.localeOf(context).languageCode;
     final primaryName = drink.nameFor(languageCode);
-    final alternateName = drink.alternateNameFor(languageCode);
     const ink = Color(0xFF241B24);
     return PressScale(
       onTap: onTap,
@@ -32,7 +31,7 @@ class FeaturedCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(.5),
+              color: Colors.black.withValues(alpha: .5),
               blurRadius: 60,
               offset: const Offset(0, 24),
             ),
@@ -84,9 +83,9 @@ class FeaturedCard extends StatelessWidget {
                     begin: Alignment.bottomCenter,
                     end: Alignment.topCenter,
                     colors: [
-                      const Color(0xFFF4EBDD).withOpacity(.94),
-                      const Color(0xFFF4EBDD).withOpacity(.62),
-                      const Color(0xFFF4EBDD).withOpacity(0),
+                      const Color(0xFFF4EBDD).withValues(alpha: .94),
+                      const Color(0xFFF4EBDD).withValues(alpha: .62),
+                      const Color(0xFFF4EBDD).withValues(alpha: 0),
                     ],
                   ),
                 ),
@@ -96,7 +95,7 @@ class FeaturedCard extends StatelessWidget {
             DecoratedBox(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: Colors.white.withOpacity(.15)),
+                border: Border.all(color: Colors.white.withValues(alpha: .15)),
               ),
             ),
             // 内容
@@ -110,8 +109,8 @@ class FeaturedCard extends StatelessWidget {
                     InfoPill(
                       label: context.l10n.featuredToday,
                       fontSize: 11,
-                      fill: Colors.white.withOpacity(.94),
-                      borderColor: Colors.white.withOpacity(.94),
+                      fill: Colors.white.withValues(alpha: .94),
+                      borderColor: Colors.white.withValues(alpha: .94),
                       textColor: const Color(0xFF0D0B10),
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 7),
@@ -121,8 +120,8 @@ class FeaturedCard extends StatelessWidget {
                       label: '${drink.abv}% ABV',
                       mono: true,
                       fontSize: 11,
-                      fill: const Color(0xFFF4EBDD).withOpacity(.86),
-                      borderColor: ink.withOpacity(.12),
+                      fill: const Color(0xFFF4EBDD).withValues(alpha: .86),
+                      borderColor: ink.withValues(alpha: .12),
                       textColor: ink,
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 7),
@@ -131,27 +130,13 @@ class FeaturedCard extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (alternateName != null) ...[
-                        Text(
-                          alternateName,
-                          style: languageCode == 'en'
-                              ? AppType.serifZh(
-                                  size: 14,
-                                  weight: FontWeight.w600,
-                                  color: ink.withOpacity(.7),
-                                )
-                              : AppType.cocktailEnglish(
-                                  size: 15,
-                                  color: ink.withOpacity(.68),
-                                ),
-                        ),
-                        const SizedBox(height: 6),
-                      ],
                       Text(
                         primaryName,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: languageCode == 'en'
                             ? AppType.cocktailEnglish(
-                                size: 30, color: ink, height: 1.1)
+                                size: 27, color: ink, height: 1.1)
                             : AppType.serifZh(
                                 size: 30,
                                 color: ink,
@@ -166,7 +151,7 @@ class FeaturedCard extends StatelessWidget {
                           drink.flavor,
                           style: AppType.sans(
                               size: 13,
-                              color: ink.withOpacity(.72),
+                              color: ink.withValues(alpha: .72),
                               height: 1.5),
                         ),
                       ),

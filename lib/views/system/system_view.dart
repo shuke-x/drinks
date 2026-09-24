@@ -41,7 +41,8 @@ class SystemView extends ConsumerWidget {
                       const SizedBox(height: 5),
                       Text(context.l10n.unitSettingsSubtitle,
                           style: AppType.sans(
-                              size: 13, color: Colors.white.withOpacity(.5))),
+                              size: 13,
+                              color: Colors.white.withValues(alpha: .5))),
                       const SizedBox(height: 22),
                       GlassCard(
                           child: Column(
@@ -55,7 +56,7 @@ class SystemView extends ConsumerWidget {
                                 decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(99),
                                     color: const Color(0xFF787880)
-                                        .withOpacity(.32)),
+                                        .withValues(alpha: .32)),
                                 child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
@@ -69,7 +70,7 @@ class SystemView extends ConsumerWidget {
                                     : context.l10n.ounceMode,
                                 style: AppType.sans(
                                     size: 12.5,
-                                    color: Colors.white.withOpacity(.5),
+                                    color: Colors.white.withValues(alpha: .5),
                                     height: 1.5))
                           ])),
                     ]))));
@@ -83,12 +84,13 @@ class SystemView extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 9),
           decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(99),
-              color:
-                  active ? Colors.white.withOpacity(.94) : Colors.transparent),
+              color: active
+                  ? Colors.white.withValues(alpha: .94)
+                  : Colors.transparent),
           child: Text(label,
               style: AppType.mono(
                   size: 12,
                   color: active
                       ? const Color(0xFF0D0B10)
-                      : Colors.white.withOpacity(.6)))));
+                      : Colors.white.withValues(alpha: .6)))));
 }

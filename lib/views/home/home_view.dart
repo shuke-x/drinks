@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -67,7 +66,7 @@ class _HomeViewState extends ConsumerState<HomeView>
       viewportFraction: .94,
     );
     _scrollController = ScrollController();
-    _scrollController.addListener(_loadMoreIfNeeded);
+    _scrollController.addListener(_handleHomeScroll);
     _gridEntranceController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 420),
@@ -234,6 +233,12 @@ class _HomeViewState extends ConsumerState<HomeView>
     unawaited(ref.read(cocktailFeedProvider(category).notifier).loadMore());
   }
 
+  // Kept as the stable ScrollController listener entry point so hot reloads
+  // do not leave an existing HomeView state referencing a removed method.
+  void _handleHomeScroll() {
+    _loadMoreIfNeeded();
+  }
+
   bool _isCategoryHeaderPinned() {
     if (!_scrollController.hasClients || _scrollController.offset <= 0) {
       return false;
@@ -352,12 +357,15 @@ class _HomeViewState extends ConsumerState<HomeView>
                                     height: 1.15,
                                     letterSpacing: -.3)),
                           ]),
-                      ExcludeSemantics(
-                        child: Icon(
-                          PhosphorIcons.moonStars(),
-                          size: 22,
-                          color: Colors.white.withValues(alpha: .48),
-                        ),
+                      GlassActionButton(
+                        key: const ValueKey('home_search_action'),
+                        label: context.l10n.search,
+                        icon: PhosphorIcons.magnifyingGlass(),
+                        appleSystemImageName: 'magnifyingglass',
+                        showLabel: false,
+                        width: 46,
+                        height: 46,
+                        onTap: () => context.push('/search'),
                       ),
                     ],
                   ),
@@ -546,6 +554,9 @@ class _CategoryHeaderDelegate extends SliverPersistentHeaderDelegate {
   });
 
   static const height = 64.0;
+  // A one-pixel collapse gives the delegate a reliable shrinkOffset signal
+  // exactly when the header reaches its pinned position.
+  static const _pinProbeExtent = 1.0;
   final GlobalKey headerKey;
   final Widget child;
 
@@ -553,7 +564,7 @@ class _CategoryHeaderDelegate extends SliverPersistentHeaderDelegate {
   double get minExtent => height;
 
   @override
-  double get maxExtent => height;
+  double get maxExtent => height + _pinProbeExtent;
 
   @override
   Widget build(
@@ -561,6 +572,7 @@ class _CategoryHeaderDelegate extends SliverPersistentHeaderDelegate {
     double shrinkOffset,
     bool overlapsContent,
   ) {
+    final isPinned = shrinkOffset > .01 || overlapsContent;
     return SizedBox.expand(
       key: headerKey,
       child: Stack(
@@ -572,27 +584,29 @@ class _CategoryHeaderDelegate extends SliverPersistentHeaderDelegate {
                 : const Duration(milliseconds: 240),
             switchInCurve: Curves.easeOutCubic,
             switchOutCurve: Curves.easeInCubic,
-            child: overlapsContent
-                ? ClipRect(
+            layoutBuilder: (currentChild, previousChildren) => Stack(
+              fit: StackFit.expand,
+              children: [
+                ...previousChildren,
+                if (currentChild != null) currentChild,
+              ],
+            ),
+            child: isPinned
+                ? SizedBox.expand(
                     key: const ValueKey('category_sticky_glass'),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.white.withValues(alpha: .13),
-                              const Color(0xFF0D0B10).withValues(alpha: .72),
-                            ],
-                          ),
-                          border: Border(
-                            bottom: BorderSide(
-                              color: Colors.white.withValues(alpha: .14),
-                              width: .5,
-                            ),
-                          ),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black,
+                            Colors.black.withValues(alpha: 0.8),
+                            Colors.black.withValues(alpha: 0.6),
+                            Colors.black.withValues(alpha: 0.4),
+                            Colors.black.withValues(alpha: 0.2),
+                            Colors.transparent,
+                          ],
                         ),
                       ),
                     ),

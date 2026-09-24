@@ -25,8 +25,10 @@ dependencies:
   # 品牌字体随应用本地打包，离线环境不发起运行时字体请求。
   # Phosphor 图标（设计稿使用 @phosphor-icons/web）
   phosphor_flutter: ^2.1.0
+  cupertino_icons: ^1.0.8
   # 系统相册多选与图片上传
   image_picker: ^1.1.2
+  permission_handler: ^12.0.1
   flutter_image_compress: ^2.4.0
   path_provider: ^2.1.5
   flutter_svg: ^2.2.4
@@ -37,12 +39,6 @@ dependencies:
   flutter_staggered_grid_view: ^0.7.0
 
 dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  integration_test:
-    sdk: flutter
-  flutter_driver:
-    sdk: flutter
   flutter_lints: ^4.0.0
 
 flutter:

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
+import '../../components/app_secondary_page.dart';
 import '../../components/app_empty_view.dart';
 import '../../components/app_loading_view.dart';
 import '../../components/cocktail_cover.dart';
@@ -63,22 +64,24 @@ class _PrivateViewState extends ConsumerState<PrivateView> {
   Widget build(BuildContext context) {
     final user = ref.watch(userProvider);
     final selectedStatus = ref.watch(myCocktailStatusProvider);
-    final top = MediaQuery.paddingOf(context).top;
 
     if (!user.isLoggedIn) {
-      return Padding(
-        padding: EdgeInsets.fromLTRB(
-          AppSpacing.gutter,
-          top + 20,
-          AppSpacing.gutter,
-          132,
-        ),
-        child: AppEmptyView(
-          icon: PhosphorIcons.lockKey(),
-          title: context.l10n.privateCocktails,
-          subtitle: context.l10n.loginManageCocktails,
-          actionLabel: context.l10n.login,
-          onAction: () => context.push('/login'),
+      return AppSecondaryPage(
+        title: context.l10n.privateCocktails,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.gutter,
+            20,
+            AppSpacing.gutter,
+            32,
+          ),
+          child: AppEmptyView(
+            icon: PhosphorIcons.lockKey(),
+            title: context.l10n.privateCocktails,
+            subtitle: context.l10n.loginManageCocktails,
+            actionLabel: context.l10n.login,
+            onAction: () => context.push('/login'),
+          ),
         ),
       );
     }
@@ -96,130 +99,112 @@ class _PrivateViewState extends ConsumerState<PrivateView> {
       }
     });
 
-    return RefreshIndicator.adaptive(
-      onRefresh: () => ref
-          .read(myCocktailsProvider(selectedStatus).notifier)
-          .loadFirstPage(),
-      child: CustomScrollView(
-        controller: _scrollController,
-        slivers: [
-          SliverPadding(
-            padding: EdgeInsets.fromLTRB(
-              AppSpacing.gutter,
-              top + 20,
-              AppSpacing.gutter,
-              0,
-            ),
-            sliver: SliverToBoxAdapter(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(context.l10n.privateCocktails,
-                            style: AppType.serifZh(size: 28)),
+    return AppSecondaryPage(
+      title: context.l10n.privateCocktails,
+      actions: [
+        GlassCircleButton(
+          key: const ValueKey('new_private_cocktail'),
+          icon: CupertinoIcons.add,
+          appleSystemImageName: 'plus',
+          size: 38,
+          iconSize: 18,
+          semanticLabel: context.l10n.uploadCocktail,
+          onTap: () => context.push('/upload?private=true'),
+        ),
+      ],
+      child: RefreshIndicator.adaptive(
+        onRefresh: () => ref
+            .read(myCocktailsProvider(selectedStatus).notifier)
+            .loadFirstPage(),
+        child: CustomScrollView(
+          controller: _scrollController,
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.gutter,
+                12,
+                AppSpacing.gutter,
+                0,
+              ),
+              sliver: SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      height: 42,
+                      child: HorizontalEdgeShadow(
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _filters.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 8),
+                          itemBuilder: (context, index) {
+                            final status = _filters[index];
+                            return GlassChip(
+                              label: _statusLabel(context, status),
+                              selected: selectedStatus == status,
+                              onTap: () => ref
+                                  .read(myCocktailStatusProvider.notifier)
+                                  .state = status,
+                            );
+                          },
+                        ),
                       ),
-                      GlassCircleButton(
-                        icon: PhosphorIcons.plus(PhosphorIconsStyle.bold),
-                        appleSystemImageName: 'plus',
-                        semanticLabel: context.l10n.uploadCocktail,
-                        onTap: () => context.push('/upload?private=true'),
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+                ),
+              ),
+            ),
+            if (state.isLoading && state.items.isEmpty)
+              const SliverFillRemaining(child: AppLoadingView())
+            else if (state.items.isEmpty)
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.gutter, 48, AppSpacing.gutter, 0),
+                sliver: SliverToBoxAdapter(
+                  child: Column(
+                    children: [
+                      Icon(PhosphorIcons.bookOpen(),
+                          color: Colors.white.withValues(alpha: .45), size: 30),
+                      const SizedBox(height: 12),
+                      Text(
+                        context.l10n.privateCocktailEmpty,
+                        textAlign: TextAlign.center,
+                        style: AppType.sans(
+                          size: 15,
+                          weight: FontWeight.w600,
+                          color: Colors.white.withValues(alpha: .72),
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    context.l10n.privateCocktailSubtitle(user.name),
-                    style: AppType.sans(
-                      size: 13,
-                      color: Colors.white.withValues(alpha: .5),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  SizedBox(
-                    height: 42,
-                    child: HorizontalEdgeShadow(
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _filters.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 8),
-                        itemBuilder: (context, index) {
-                          final status = _filters[index];
-                          return GlassChip(
-                            label: _statusLabel(context, status),
-                            selected: selectedStatus == status,
-                            onTap: () => ref
-                                .read(myCocktailStatusProvider.notifier)
-                                .state = status,
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                ],
-              ),
-            ),
-          ),
-          if (state.isLoading && state.items.isEmpty)
-            const SliverFillRemaining(child: AppLoadingView())
-          else if (state.items.isEmpty)
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.gutter,
-              ),
-              sliver: SliverToBoxAdapter(
-                child: GlassCard(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 26),
-                    child: Column(
-                      children: [
-                        Icon(PhosphorIcons.bookOpen(),
-                            color: Colors.white.withValues(alpha: .45),
-                            size: 30),
-                        const SizedBox(height: 12),
-                        Text(context.l10n.privateCocktailEmpty,
-                            style: AppType.serifZh(size: 17)),
-                        const SizedBox(height: 6),
-                        Text(
-                          context.l10n.privateCocktailEmptyHint,
-                          textAlign: TextAlign.center,
-                          style: AppType.sans(
-                            size: 12.5,
-                            color: Colors.white.withValues(alpha: .45),
-                          ),
-                        ),
-                      ],
-                    ),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.gutter,
+                ),
+                sliver: SliverList.separated(
+                  itemCount: state.items.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 11),
+                  itemBuilder: (context, index) => _cocktailCard(
+                    context,
+                    state.items[index],
+                    state.busyIds.contains(state.items[index].id),
                   ),
                 ),
               ),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.gutter,
-              ),
-              sliver: SliverList.separated(
-                itemCount: state.items.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 11),
-                itemBuilder: (context, index) => _cocktailCard(
-                  context,
-                  state.items[index],
-                  state.busyIds.contains(state.items[index].id),
+            if (state.isLoadingMore)
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Center(child: CircularProgressIndicator()),
                 ),
               ),
-            ),
-          if (state.isLoadingMore)
-            const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.all(20),
-                child: Center(child: CircularProgressIndicator()),
-              ),
-            ),
-          const SliverToBoxAdapter(child: SizedBox(height: 132)),
-        ],
+            const SliverToBoxAdapter(child: SizedBox(height: 132)),
+          ],
+        ),
       ),
     );
   }
@@ -251,7 +236,7 @@ class _PrivateViewState extends ConsumerState<PrivateView> {
                   Text(
                     drink.nameFor(languageCode),
                     style: languageCode == 'en'
-                        ? AppType.cocktailEnglish(size: 17)
+                        ? AppType.cocktailEnglish(size: 15)
                         : AppType.serifZh(size: 16),
                   ),
                   const SizedBox(height: 5),

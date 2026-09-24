@@ -1,6 +1,3 @@
-import 'dart:convert';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/repositories/cocktail_repository.dart';
@@ -8,17 +5,20 @@ import '../core/network/api_page.dart';
 import '../core/query/query_cache.dart';
 import '../models/cocktail.dart';
 import 'settings_store.dart';
+import 'user_store.dart';
+import '../data/apis/api_providers.dart';
+import '../data/datasources/cocktail_remote_datasource.dart';
 
 /// 仓库单例（测试时可 override 注入 fake）。
 final cocktailRepositoryProvider = Provider<CocktailRepository>((ref) {
-  return CocktailRepository();
+  return CocktailRepository(
+    source: CocktailRemoteDataSource(api: ref.watch(cocktailApiProvider)),
+  );
 });
 
 /// 内置/官方酒单。
 final builtinDrinksProvider = FutureProvider<List<Cocktail>>((ref) async {
   final drinks = await ref.watch(cocktailRepositoryProvider).getAll();
-  debugPrint('[CocktailStore] list (${drinks.length})\n'
-      '${const JsonEncoder.withIndent('  ').convert(drinks.map((e) => e.toJson()).toList())}');
   return drinks;
 });
 
@@ -26,8 +26,6 @@ final builtinDrinksProvider = FutureProvider<List<Cocktail>>((ref) async {
 final recommendationsProvider = FutureProvider<List<Cocktail>>((ref) async {
   final drinks =
       await ref.watch(cocktailRepositoryProvider).getRecommendations();
-  debugPrint('[CocktailStore] recommendations (${drinks.length})\n'
-      '${const JsonEncoder.withIndent('  ').convert(drinks.map((e) => e.toJson()).toList())}');
   return drinks;
 });
 
@@ -129,6 +127,7 @@ class CocktailFeedNotifier extends CachedQueryNotifier<CocktailFeedState> {
         page: state.page + 1,
         limit: pageSize,
       );
+      if (!mounted) return;
       final byId = <String, Cocktail>{
         for (final item in state.items) item.id: item,
         for (final item in result.items) item.id: item,
@@ -140,7 +139,7 @@ class CocktailFeedNotifier extends CachedQueryNotifier<CocktailFeedState> {
       );
       cacheCurrentState();
     } catch (error) {
-      state = state.copyWith(isLoadingMore: false, error: error);
+      if (mounted) state = state.copyWith(isLoadingMore: false, error: error);
     }
   }
 
@@ -158,14 +157,15 @@ class CocktailFeedNotifier extends CachedQueryNotifier<CocktailFeedState> {
 
 const cocktailFeedQueryPrefix = QueryKey(['cocktail-feed']);
 
-QueryKey cocktailFeedQueryKey(String? spirit) =>
-    QueryKey(['cocktail-feed', spirit]);
+QueryKey cocktailFeedQueryKey(String? spirit, {String lang = 'zh'}) =>
+    QueryKey(['cocktail-feed', lang, spirit]);
 
 final cocktailFeedProvider = StateNotifierProvider.autoDispose
     .family<CocktailFeedNotifier, CocktailFeedState, String?>((ref, spirit) {
   final queryClient = ref.watch(queryClientProvider);
   final policy = ref.watch(queryCachePolicyProvider);
-  final queryKey = cocktailFeedQueryKey(spirit);
+  final queryKey = cocktailFeedQueryKey(spirit,
+      lang: ref.watch(cocktailQueryLanguageProvider));
   final initialState = queryClient.registerQuery(
     queryKey,
     const CocktailFeedState(),
@@ -188,11 +188,20 @@ final cocktailDetailProvider =
   return ref.watch(cocktailRepositoryProvider).getDetail(id);
 });
 
-/// 全部酒 = 内置 + 我的酒单（原型 all()）。
+final localizedMineProvider = FutureProvider<List<Cocktail>>((ref) {
+  final account = ref
+      .watch(userProvider.select((user) => user.isLoggedIn ? user.id : null));
+  final local = ref.watch(appDataProvider.select((data) => data.mine));
+  if (account == null) return Future.value(local);
+  return ref.watch(localizedUserApiProvider).myCocktails();
+});
+
+/// 全部酒 = 当前语言的内置酒单 + 我的酒单。
 final allDrinksProvider = Provider<List<Cocktail>>((ref) {
   final builtin =
       ref.watch(builtinDrinksProvider).valueOrNull ?? const <Cocktail>[];
-  final mine = ref.watch(appDataProvider).mine;
+  final mine =
+      ref.watch(localizedMineProvider).valueOrNull ?? const <Cocktail>[];
   return [...builtin, ...mine];
 });
 
@@ -201,12 +210,9 @@ final drinkByIdProvider = Provider.family<Cocktail?, String>((ref, id) {
   final all = ref.watch(allDrinksProvider);
   for (final d in all) {
     if (d.id == id) {
-      debugPrint('[CocktailStore] detail $id\n'
-          '${const JsonEncoder.withIndent('  ').convert(d.toJson())}');
       return d;
     }
   }
-  debugPrint('[CocktailStore] detail $id: not found');
   return null;
 });
 

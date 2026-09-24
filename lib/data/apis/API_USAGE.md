@@ -12,6 +12,21 @@ import '../data/apis/api_providers.dart';
 final api = ref.read(cocktailApiProvider);
 ```
 
+## 接口语言
+
+`cocktailApiProvider` 自动使用当前 App 语言；用户酒单的本地化读取使用
+`localizedUserApiProvider`。认证/资料仍使用稳定的 `userApiProvider`，不会因切换语言重建会话。
+分类、列表、详情、随机、推荐、今日推荐、我的酒单和收藏八个 GET 端点发送 `lang=en` 或 `lang=zh`。
+跟随系统时采用与 App 相同的语言解析，分页缓存按语言隔离。
+
+非 Provider 调用可显式创建 `CocktailApi(lang: 'en')` / `UserApi(lang: 'en')`；默认中文。
+`UserApi.myCocktailsPage`、`myCocktails`、`favoriteIds` 也可用命名参数 `lang` 覆盖。
+写入接口不附加此参数。
+
+语言变化由查询依赖统一触发：活跃查询自动重新读取；未活跃分页查询标记失效，
+再次订阅时请求。切回曾用语言也重新验证，不因旧缓存尚在 staleTime 内而跳过请求。
+语言设置页无需逐个调用接口，也不清除账户或其他不依赖语言的数据。
+
 ## 鸡尾酒接口
 
 ```dart

@@ -126,7 +126,7 @@ class _MobiusPainter extends CustomPainter {
         final sweep = (math.sin(a0 - phase) + 1) / 2;
         final side = (math.cos(a0 / 2) + 1) / 2;
         final base = Color.lerp(themeColor, const Color(0xFF241B36), .52)!;
-        final amber = const Color(0xFFFFC66D);
+        const amber = Color(0xFFFFC66D);
         final color = Color.lerp(base, amber, .18 + .56 * sweep + .18 * side)!;
         canvas.drawPath(path, Paint()..color = color);
       }

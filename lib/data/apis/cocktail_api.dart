@@ -5,13 +5,15 @@ import '../../models/cocktail.dart';
 /// 鸡尾酒服务端接口，覆盖 `/cocktails` 的全部读写端点。
 /// UI 应通过 Repository/Store 调用，不直接持有此类。
 class CocktailApi {
-  CocktailApi({DioController? controller})
+  CocktailApi({DioController? controller, this.lang = 'zh'})
       : _controller = controller ?? DioController();
 
   final DioController _controller;
+  final String lang;
 
   Future<List<CocktailCategory>> categories() => _controller.get(
         '/cocktail-categories',
+        queryParameters: {'lang': lang},
         decoder: (data) => (data as List)
             .map((item) =>
                 CocktailCategory.fromJson(item as Map<String, dynamic>))
@@ -26,6 +28,7 @@ class CocktailApi {
       _controller.getPage(
         '/cocktails',
         queryParameters: {
+          'lang': lang,
           if (spirit != null) 'spirit': spirit,
           'page': page,
           'limit': limit,
@@ -42,11 +45,13 @@ class CocktailApi {
 
   Future<List<Cocktail>> recommendations() => _controller.get(
         '/cocktails/recommendations',
+        queryParameters: {'lang': lang},
         decoder: _cocktailList,
       );
 
   Future<List<Cocktail>> todayRecommendations() => _controller.get(
         '/cocktails/today-recommendations',
+        queryParameters: {'lang': lang},
         decoder: (data) {
           final json = data as Map<String, dynamic>;
           return _cocktailList(json['items']);
@@ -56,6 +61,7 @@ class CocktailApi {
   Future<Cocktail> random({String? spirit}) => _controller.get(
         '/cocktails/random',
         queryParameters: {
+          'lang': lang,
           if (spirit != null) 'spirit': spirit,
         },
         decoder: _cocktail,
@@ -63,6 +69,7 @@ class CocktailApi {
 
   Future<Cocktail?> detail(String id) => _controller.get(
         '/cocktails/$id',
+        queryParameters: {'lang': lang},
         decoder: (data) => data == null ? null : _cocktail(data),
       );
 

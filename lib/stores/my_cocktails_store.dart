@@ -106,6 +106,7 @@ class MyCocktailsNotifier extends CachedQueryNotifier<MyCocktailsState> {
         limit: pageSize,
         status: _status,
       );
+      if (!mounted) return;
       final byId = <String, Cocktail>{
         for (final item in state.items) item.id: item,
         for (final item in result.items) item.id: item,
@@ -117,7 +118,7 @@ class MyCocktailsNotifier extends CachedQueryNotifier<MyCocktailsState> {
       );
       cacheCurrentState();
     } catch (error) {
-      state = state.copyWith(isLoadingMore: false, error: error);
+      if (mounted) state = state.copyWith(isLoadingMore: false, error: error);
     }
   }
 
@@ -133,6 +134,7 @@ class MyCocktailsNotifier extends CachedQueryNotifier<MyCocktailsState> {
     state = state.copyWith(busyIds: {...state.busyIds, id});
     try {
       final updated = await operation(id);
+      if (!mounted) return;
       if (_status != null && updated.status != _status) {
         state = state.copyWith(
           items: state.items.where((item) => item.id != id).toList(),
@@ -151,6 +153,7 @@ class MyCocktailsNotifier extends CachedQueryNotifier<MyCocktailsState> {
       queryClient.invalidateQueries(myCocktailsQueryPrefix);
       cacheCurrentState();
     } catch (error) {
+      if (!mounted) rethrow;
       state = state.copyWith(
         busyIds: {...state.busyIds}..remove(id),
         error: error,
@@ -164,6 +167,7 @@ class MyCocktailsNotifier extends CachedQueryNotifier<MyCocktailsState> {
     state = state.copyWith(busyIds: {...state.busyIds, id});
     try {
       await _cocktailApi.delete(id);
+      if (!mounted) return;
       state = state.copyWith(
         items: state.items.where((item) => item.id != id).toList(),
         total: state.total > 0 ? state.total - 1 : 0,
@@ -172,6 +176,7 @@ class MyCocktailsNotifier extends CachedQueryNotifier<MyCocktailsState> {
       queryClient.invalidateQueries(myCocktailsQueryPrefix);
       cacheCurrentState();
     } catch (error) {
+      if (!mounted) rethrow;
       state = state.copyWith(
         busyIds: {...state.busyIds}..remove(id),
         error: error,
@@ -185,21 +190,22 @@ final myCocktailStatusProvider = StateProvider<CocktailStatus?>((ref) => null);
 
 const myCocktailsQueryPrefix = QueryKey(['my-cocktails']);
 
-QueryKey myCocktailsQueryKey(CocktailStatus? status) =>
-    QueryKey(['my-cocktails', status?.name]);
+QueryKey myCocktailsQueryKey(CocktailStatus? status, {String lang = 'zh'}) =>
+    QueryKey(['my-cocktails', lang, status?.name]);
 
 final myCocktailsProvider = StateNotifierProvider.autoDispose
     .family<MyCocktailsNotifier, MyCocktailsState, CocktailStatus?>(
         (ref, status) {
   final queryClient = ref.watch(queryClientProvider);
   final policy = ref.watch(queryCachePolicyProvider);
-  final queryKey = myCocktailsQueryKey(status);
+  final queryKey = myCocktailsQueryKey(status,
+      lang: ref.watch(cocktailQueryLanguageProvider));
   final initialState = queryClient.registerQuery(
     queryKey,
     const MyCocktailsState(),
   );
   final notifier = MyCocktailsNotifier(
-    ref.watch(userApiProvider),
+    ref.watch(localizedUserApiProvider),
     ref.watch(cocktailApiProvider),
     status,
     initialState,

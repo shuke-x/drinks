@@ -93,8 +93,8 @@ class _EdgeLight extends StatelessWidget {
   Widget build(BuildContext context) {
     final isLeft = alignment == Alignment.centerLeft;
     final colors = [
-      Colors.white.withValues(alpha: .13),
-      Colors.white.withValues(alpha: .045),
+      Colors.black.withValues(alpha: .28),
+      Colors.black.withValues(alpha: .10),
       Colors.transparent,
     ];
     return Align(
@@ -115,8 +115,8 @@ class _EdgeLight extends StatelessWidget {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.white.withValues(alpha: .055),
-                  blurRadius: 12,
+                  color: Colors.black.withValues(alpha: .12),
+                  blurRadius: 14,
                   spreadRadius: -2,
                 ),
               ],

@@ -15,6 +15,7 @@ import '../../core/theme/app_typography.dart';
 import '../../stores/settings_store.dart';
 import '../../stores/user_store.dart';
 import '../../l10n/l10n.dart';
+import '../records/record_widgets.dart';
 
 /// 用户入口：资料、收藏和设置均从这里进入。
 class UserView extends ConsumerStatefulWidget {
@@ -77,11 +78,27 @@ class _UserViewState extends ConsumerState<UserView> {
                       ? context.l10n.editProfile
                       : context.l10n.loginManageCocktails,
                   style: AppType.sans(
-                      size: 12.5, color: Colors.white.withOpacity(.48))),
+                      size: 12.5, color: Colors.white.withValues(alpha: .48))),
             ]),
           ),
         ),
         const SizedBox(height: 28),
+        _entry(
+          icon: PhosphorIcons.notebook(),
+          title: context.l10n.records,
+          subtitle: recordText(context, '记下喝过的这一杯，回看自己的配方与感受。',
+              'Revisit the drinks, recipes and impressions you have saved.'),
+          onTap: () => context.push('/records'),
+        ),
+        const SizedBox(height: 12),
+        _entry(
+          icon: PhosphorIcons.wine(),
+          title: context.l10n.cocktails,
+          subtitle: context.l10n.privateCocktailSubtitle(user.name),
+          onTap: () => context
+              .push(user.isLoggedIn ? '/private' : '/login?returnTo=/private'),
+        ),
+        const SizedBox(height: 12),
         _entry(
           icon: PhosphorIcons.heart(),
           title: context.l10n.myFavorites,
@@ -102,7 +119,7 @@ class _UserViewState extends ConsumerState<UserView> {
           trailing: Row(mainAxisSize: MainAxisSize.min, children: [
             Text(unit,
                 style: AppType.mono(
-                    size: 12, color: Colors.white.withOpacity(.55))),
+                    size: 12, color: Colors.white.withValues(alpha: .55))),
             const SizedBox(width: 4),
             Switch.adaptive(
               value: unit == 'oz',
@@ -111,6 +128,16 @@ class _UserViewState extends ConsumerState<UserView> {
                   ref.read(appDataProvider.notifier).setUnit(oz ? 'oz' : 'ml'),
             ),
           ]),
+        ),
+        const SizedBox(height: 12),
+        Semantics(
+          button: true,
+          child: _entry(
+            icon: PhosphorIcons.info(),
+            title: context.l10n.privacyAndUse,
+            subtitle: context.l10n.privacyAndUseSubtitle,
+            onTap: () => context.push('/privacy'),
+          ),
         ),
         const SizedBox(height: 12),
         _entry(
@@ -186,9 +213,9 @@ class _UserViewState extends ConsumerState<UserView> {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.white.withOpacity(.1)),
+                      color: Colors.white.withValues(alpha: .1)),
                   child: Icon(icon,
-                      size: 20, color: Colors.white.withOpacity(.85))),
+                      size: 20, color: Colors.white.withValues(alpha: .85))),
               const SizedBox(width: 13),
               Expanded(
                   child: Column(
@@ -199,11 +226,12 @@ class _UserViewState extends ConsumerState<UserView> {
                     const SizedBox(height: 4),
                     Text(subtitle,
                         style: AppType.sans(
-                            size: 12, color: Colors.white.withOpacity(.47))),
+                            size: 12,
+                            color: Colors.white.withValues(alpha: .47))),
                   ])),
               trailing ??
                   Icon(PhosphorIcons.caretRight(),
-                      size: 17, color: Colors.white.withOpacity(.4)),
+                      size: 17, color: Colors.white.withValues(alpha: .4)),
             ])),
       );
 }
@@ -223,7 +251,7 @@ class UserAvatar extends StatelessWidget {
             shape: BoxShape.circle,
             gradient: const LinearGradient(
                 colors: [Color(0xFFBF5AF2), Color(0xFF5E5CE6)]),
-            border: Border.all(color: Colors.white.withOpacity(.3))),
+            border: Border.all(color: Colors.white.withValues(alpha: .3))),
         child: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
             ? Image.network(
                 user.avatarUrl!,

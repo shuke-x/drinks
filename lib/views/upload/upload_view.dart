@@ -16,14 +16,16 @@ import 'package:http_parser/http_parser.dart';
 import '../../components/glass.dart';
 import '../../components/content_dialog.dart';
 import '../../components/app_loading_view.dart';
-import '../../components/frosted_page_overlay.dart';
+import '../../components/app_secondary_page.dart';
 import '../../components/option_wheel_sheet.dart';
+import '../../components/photo_picker_grid.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/query/query_cache.dart';
 import '../../core/theme/app_effects.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_typography.dart';
+import '../../core/media/photo_permission.dart';
 import '../../models/cocktail.dart';
 import '../../data/apis/api_providers.dart';
 import '../../data/apis/cocktail_api.dart';
@@ -173,9 +175,11 @@ class _UploadViewState extends ConsumerState<UploadView> {
       }
     });
     // 编辑模式：回填表单（原型 m.edit）
-    if (_isEdit) {
+    if (_isEdit || widget.initialDrink != null) {
       final m = <Cocktail>[
-        if (widget.initialDrink?.id == widget.editId) widget.initialDrink!,
+        if (widget.initialDrink != null &&
+            (!_isEdit || widget.initialDrink?.id == widget.editId))
+          widget.initialDrink!,
         ...ref.read(appDataProvider).mine.where((x) => x.id == widget.editId),
       ];
       if (m.isNotEmpty) {
@@ -186,9 +190,13 @@ class _UploadViewState extends ConsumerState<UploadView> {
         _createPrivate = d.isPrivate;
         _color = d.themeColor;
         final unit = ref.read(appDataProvider).unit;
+        for (final row in _rows) {
+          row.dispose();
+        }
         _rows = d.recipe
             .map((r) => _IngredientRow(
-                n: r.n, t: r.ml == null ? '' : _amountFromMl(r.ml!, unit)))
+                n: r.n,
+                t: r.ml == null ? r.t ?? '' : _amountFromMl(r.ml!, unit)))
             .toList();
         if (_rows.isEmpty) _rows = [_IngredientRow()];
         _steps.text = d.steps.join('\n');
@@ -283,41 +291,55 @@ class _UploadViewState extends ConsumerState<UploadView> {
   }
 
   Future<void> _pickImages() async {
-    final files = await ImagePicker().pickMultiImage(
-      maxWidth: 2048,
-      maxHeight: 2048,
-      imageQuality: 82,
-    );
-    if (!mounted || files.isEmpty) return;
-    final accepted = <XFile>[];
-    var oversized = 0;
-    var invalid = 0;
-    for (final file in files) {
-      if (await file.length() > _maxImageBytes) {
-        oversized++;
-        continue;
+    if (!await ensurePhotoPermission(context)) return;
+    try {
+      final files = await ImagePicker().pickMultiImage(
+        maxWidth: 2048,
+        maxHeight: 2048,
+        imageQuality: 82,
+        requestFullMetadata: false,
+      );
+      if (!mounted || files.isEmpty) return;
+      final accepted = <XFile>[];
+      var oversized = 0;
+      var invalid = 0;
+      for (final file in files) {
+        if (await file.length() > _maxImageBytes) {
+          oversized++;
+          continue;
+        }
+        final normalized = await _compressToJpeg(file);
+        if (normalized == null) {
+          invalid++;
+        } else if (await normalized.length() > _maxImageBytes) {
+          oversized++;
+        } else {
+          accepted.add(normalized);
+        }
       }
-      final normalized = await _compressToJpeg(file);
-      if (normalized == null) {
-        invalid++;
-      } else if (await normalized.length() > _maxImageBytes) {
-        oversized++;
-      } else {
-        accepted.add(normalized);
+      if (!mounted) return;
+      if (oversized > 0 || invalid > 0) {
+        setState(() => _imageSelectionInvalid = true);
+        ref.read(toastProvider.notifier).show(invalid > 0
+            ? context.l10n.uploadInvalidImage
+            : context.l10n.imageTooLarge(oversized));
+        return;
       }
+      setState(() {
+        _imageSelectionInvalid = false;
+        _pickedImages.addAll(accepted);
+      });
+    } on PlatformException catch (error) {
+      if (!mounted) return;
+      final denied = {'photo_access_denied', 'photo_access_restricted'}
+          .contains(error.code);
+      ref.read(toastProvider.notifier).show(denied
+          ? context.l10n.photoAccessDenied
+          : context.l10n.photoReadFailed);
+    } catch (_) {
+      if (!mounted) return;
+      ref.read(toastProvider.notifier).show(context.l10n.photoReadFailed);
     }
-    if (!mounted) return;
-    if (oversized > 0 || invalid > 0) {
-      setState(() => _imageSelectionInvalid = true);
-      ref.read(toastProvider.notifier).show(invalid > 0
-          ? context.l10n.uploadInvalidImage
-          : context.l10n.imageTooLarge(oversized));
-      return;
-    }
-    setState(() {
-      _imageSelectionInvalid = false;
-      _pickedImages.addAll(accepted);
-    });
   }
 
   /// 统一转 JPEG：最长边 2048px、质量 82，兼容 iPhone HEIC 与后端格式限制。
@@ -481,14 +503,18 @@ class _UploadViewState extends ConsumerState<UploadView> {
       final rows = _rows.where((r) => r.name.text.trim().isNotEmpty).map((r) {
         final amount = double.tryParse(r.amount.text.trim());
         if (amount == null) {
-          return RecipeItem(n: r.name.text.trim(), t: l10n.suitableAmount);
+          return RecipeItem(
+              n: r.name.text.trim(),
+              t: r.amount.text.trim().isEmpty
+                  ? l10n.suitableAmount
+                  : r.amount.text.trim());
         }
         final unit = ref.read(appDataProvider).unit;
         final milliliters = unit == 'oz' ? amount * 29.5735 : amount;
         return RecipeItem(n: r.name.text.trim(), ml: milliliters.round());
       }).toList();
       final hexColor =
-          '#${_color.value.toRadixString(16).substring(2).toUpperCase()}';
+          '#${_color.toARGB32().toRadixString(16).substring(2).toUpperCase()}';
       // 两阶段提交：逐张上传且全部成功后，才允许创建/更新酒单。
       uploadingImages = true;
       final uploadedImages = await _uploadCocktailImages();
@@ -532,9 +558,10 @@ class _UploadViewState extends ConsumerState<UploadView> {
         story: _isEdit ? null : item.story,
         recipe: item.recipe,
         steps: item.steps,
-        isPrivate: widget.initialDrink?.status == CocktailStatus.published
-            ? null
-            : _createPrivate,
+        isPrivate:
+            _isEdit && widget.initialDrink?.status == CocktailStatus.published
+                ? null
+                : _createPrivate,
       );
       Cocktail saved;
       if (_isEdit) {
@@ -578,7 +605,6 @@ class _UploadViewState extends ConsumerState<UploadView> {
 
   @override
   Widget build(BuildContext context) {
-    final topPad = MediaQuery.paddingOf(context).top;
     final loggedIn = ref.watch(userProvider).isLoggedIn;
     final unit = ref.watch(appDataProvider.select((data) => data.unit));
     final categoryState = ref.watch(cocktailCategoriesProvider);
@@ -602,438 +628,338 @@ class _UploadViewState extends ConsumerState<UploadView> {
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop) _requestClose();
       },
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        resizeToAvoidBottomInset: true,
-        body: GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-            child: Stack(children: [
-              FrostedPageOverlay(
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.fromLTRB(
-                      AppSpacing.gutter,
-                      topPad + 12,
-                      AppSpacing.gutter,
-                      40 + MediaQuery.viewInsetsOf(context).bottom),
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // ---- 头部 ----
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(context.l10n.newRecipe,
-                                      style: AppType.eyebrow(
-                                          size: 11,
-                                          tracking: .18,
-                                          color:
-                                              Colors.white.withOpacity(.42))),
-                                  const SizedBox(height: 7),
-                                  Text(context.l10n.uploadCocktail,
-                                      style: AppType.serifZh(
-                                          size: 26, height: 1.2)),
-                                ]),
-                            GlassCircleButton(
-                              icon: PhosphorIcons.x(PhosphorIconsStyle.bold),
-                              appleSystemImageName: 'xmark',
-                              size: 38,
-                              iconSize: 15,
-                              iconColor: Colors.white,
-                              semanticLabel: context.l10n.close,
-                              onTap: _requestClose,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 22),
-
-                        // ---- 基本信息 ----
-                        RiseIn(
-                          child: GlassCard(
-                            child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _itemTitle(context.l10n.nameLabel),
-                                  const SizedBox(height: 10),
-                                  _input(
-                                    englishLocale ? _en : _zh,
-                                    englishLocale
-                                        ? context.l10n.englishNameHint
-                                        : context.l10n.chineseNameHint,
-                                  ),
-                                  _validation('name'),
-                                  if (!englishLocale) ...[
-                                    const SizedBox(height: 16),
-                                    _itemTitle(context.l10n.englishNameLabel),
-                                    const SizedBox(height: 10),
-                                    _input(
-                                      _en,
-                                      context.l10n.englishNameHint,
-                                    ),
-                                  ],
-                                  const SizedBox(height: 16),
-                                  _itemTitle(context.l10n.baseSpirit),
-                                  const SizedBox(height: 10),
-                                  OptionWheelButton(
-                                    controlKey: const ValueKey(
-                                      'base_spirit_select',
-                                    ),
-                                    label: selectedCategory?.labelFor(
+      child: AppSecondaryPage(
+        title:
+            _isEdit ? context.l10n.editCocktail : context.l10n.uploadCocktail,
+        fallbackLocation: '/private',
+        onBack: _requestClose,
+        child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+          child: Stack(children: [
+            SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                  AppSpacing.gutter,
+                  12,
+                  AppSpacing.gutter,
+                  40 + MediaQuery.viewInsetsOf(context).bottom),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // ---- 基本信息 ----
+                    RiseIn(
+                      duration: _isEdit
+                          ? Duration.zero
+                          : const Duration(milliseconds: 550),
+                      child: GlassCard(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _itemTitle(context.l10n.nameLabel),
+                              const SizedBox(height: 10),
+                              _input(
+                                englishLocale ? _en : _zh,
+                                englishLocale
+                                    ? context.l10n.englishNameHint
+                                    : context.l10n.chineseNameHint,
+                              ),
+                              _validation('name'),
+                              if (!englishLocale) ...[
+                                const SizedBox(height: 16),
+                                _itemTitle(context.l10n.englishNameLabel),
+                                const SizedBox(height: 10),
+                                _input(
+                                  _en,
+                                  context.l10n.englishNameHint,
+                                ),
+                              ],
+                              const SizedBox(height: 16),
+                              _itemTitle(context.l10n.baseSpirit),
+                              const SizedBox(height: 10),
+                              OptionWheelButton(
+                                controlKey: const ValueKey(
+                                  'base_spirit_select',
+                                ),
+                                label: selectedCategory?.labelFor(
+                                      languageCode,
+                                    ) ??
+                                    context.l10n.baseSpirit,
+                                semanticLabel: context.l10n.baseSpirit,
+                                onPressed: categories.isEmpty
+                                    ? null
+                                    : () => _showSpiritWheel(
+                                          context,
+                                          categories,
                                           languageCode,
-                                        ) ??
-                                        context.l10n.baseSpirit,
-                                    semanticLabel: context.l10n.baseSpirit,
-                                    onPressed: categories.isEmpty
-                                        ? null
-                                        : () => _showSpiritWheel(
-                                              context,
-                                              categories,
-                                              languageCode,
-                                            ),
-                                  ),
-                                  _validation('spirit'),
-                                  if (categoryState.isLoading)
-                                    const Padding(
-                                      padding: EdgeInsets.only(top: 8),
-                                      child:
-                                          LinearProgressIndicator(minHeight: 2),
-                                    ),
-                                  const SizedBox(height: 16),
-                                  _itemTitle(context.l10n.themeColor),
-                                  const SizedBox(height: 10),
-                                  Row(children: [
-                                    for (final c in AppColors.swatch)
-                                      Padding(
-                                        padding:
-                                            const EdgeInsets.only(right: 10),
-                                        child: GestureDetector(
-                                          onTap: () =>
-                                              setState(() => _color = c),
-                                          child: AnimatedScale(
-                                            scale: _color == c ? 1.15 : 1,
-                                            duration: const Duration(
-                                                milliseconds: 300),
-                                            curve: AppMotion.spring,
-                                            child: Container(
-                                              width: 34,
-                                              height: 34,
-                                              decoration: BoxDecoration(
-                                                shape: BoxShape.circle,
-                                                color: c,
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: Colors.white
-                                                        .withOpacity(_color == c
-                                                            ? .85
-                                                            : .2),
-                                                    spreadRadius:
-                                                        _color == c ? 2 : 1,
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
                                         ),
-                                      ),
-                                  ]),
-                                  const SizedBox(height: 16),
-                                  _itemTitle(context.l10n.cocktailImages),
-                                  const SizedBox(height: 10),
-                                  Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: [
-                                      for (var i = 0;
-                                          i < _pickedImages.length;
-                                          i++)
-                                        SizedBox(
-                                          width: 70,
-                                          height: 70,
-                                          child: Stack(
-                                            clipBehavior: Clip.none,
-                                            children: [
-                                              Positioned.fill(
-                                                child: GestureDetector(
-                                                  onTap: () => _showImage(
-                                                      _pickedImages[i]),
-                                                  child: ClipRRect(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            12),
-                                                    child: _imagePreview(
-                                                        _pickedImages[i],
-                                                        width: 70,
-                                                        height: 70),
-                                                  ),
-                                                ),
-                                              ),
-                                              Positioned(
-                                                right: -6,
-                                                top: -6,
-                                                child: GestureDetector(
-                                                  onTap: () => setState(() =>
-                                                      _pickedImages
-                                                          .removeAt(i)),
-                                                  child: SizedBox.square(
-                                                    dimension: 44,
-                                                    child: Center(
-                                                      child: Container(
-                                                        width: 24,
-                                                        height: 24,
-                                                        decoration:
-                                                            BoxDecoration(
-                                                          shape:
-                                                              BoxShape.circle,
-                                                          color: const Color(
-                                                              0xFF232027),
-                                                          border: Border.all(
-                                                            color: Colors.white
-                                                                .withOpacity(
-                                                                    .7),
-                                                          ),
-                                                        ),
-                                                        child: const Icon(
-                                                            Icons.close,
-                                                            size: 14,
-                                                            color:
-                                                                Colors.white),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
+                              ),
+                              _validation('spirit'),
+                              if (categoryState.isLoading)
+                                const Padding(
+                                  padding: EdgeInsets.only(top: 8),
+                                  child: LinearProgressIndicator(minHeight: 2),
+                                ),
+                              const SizedBox(height: 16),
+                              _itemTitle(context.l10n.themeColor),
+                              const SizedBox(height: 10),
+                              Row(children: [
+                                for (final c in AppColors.swatch)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 10),
+                                    child: GestureDetector(
+                                      onTap: () => setState(() => _color = c),
+                                      child: AnimatedScale(
+                                        scale: _color == c ? 1.15 : 1,
+                                        duration:
+                                            const Duration(milliseconds: 300),
+                                        curve: AppMotion.spring,
+                                        child: Container(
+                                          width: 34,
+                                          height: 34,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: c,
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.white.withValues(
+                                                    alpha:
+                                                        _color == c ? .85 : .2),
+                                                spreadRadius:
+                                                    _color == c ? 2 : 1,
                                               ),
                                             ],
                                           ),
                                         ),
-                                      GestureDetector(
-                                        onTap: _pickImages,
-                                        child: Container(
-                                            width: 64,
-                                            height: 64,
-                                            alignment: Alignment.center,
-                                            decoration: BoxDecoration(
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                                color: Colors.white
-                                                    .withOpacity(.1),
-                                                border: Border.all(
+                                      ),
+                                    ),
+                                  ),
+                              ]),
+                              const SizedBox(height: 16),
+                              _itemTitle(context.l10n.cocktailImages),
+                              const SizedBox(height: 10),
+                              PhotoPickerGrid(
+                                itemCount: _pickedImages.length,
+                                itemSize: 70,
+                                onAdd: _pickImages,
+                                itemBuilder: (context, i) => PhotoPickerTile(
+                                  size: 70,
+                                  semanticLabel: 'Remove image',
+                                  onRemove: () =>
+                                      setState(() => _pickedImages.removeAt(i)),
+                                  child: CupertinoButton(
+                                    padding: EdgeInsets.zero,
+                                    onPressed: () =>
+                                        _showImage(_pickedImages[i]),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: _imagePreview(_pickedImages[i],
+                                          width: 70, height: 70),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              _validation('images'),
+                              if (loggedIn) ...[
+                                const SizedBox(height: 18),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 13, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(16),
+                                    color: Colors.white.withValues(alpha: .06),
+                                    border: Border.all(
+                                        color: Colors.white
+                                            .withValues(alpha: .12)),
+                                  ),
+                                  child: Row(children: [
+                                    Icon(PhosphorIcons.lockKey(),
+                                        size: 16,
+                                        color: Colors.white
+                                            .withValues(alpha: .72)),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                                context
+                                                    .l10n.createPrivateCocktail,
+                                                style: AppType.sans(
+                                                    size: 13.5,
+                                                    weight: FontWeight.w600)),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                                _createPrivate
+                                                    ? context.l10n
+                                                        .privateCocktailDescription
+                                                    : context.l10n
+                                                        .publicCocktailDescription,
+                                                style: AppType.sans(
+                                                    size: 11.5,
                                                     color: Colors.white
-                                                        .withOpacity(.22))),
-                                            child: const Icon(
-                                                Icons
-                                                    .add_photo_alternate_outlined,
-                                                color: Colors.white70)),
-                                      ),
-                                    ],
-                                  ),
-                                  _validation('images'),
-                                  if (loggedIn) ...[
-                                    const SizedBox(height: 18),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 13, vertical: 8),
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(16),
-                                        color: Colors.white.withOpacity(.06),
-                                        border: Border.all(
-                                            color:
-                                                Colors.white.withOpacity(.12)),
-                                      ),
-                                      child: Row(children: [
-                                        Icon(PhosphorIcons.lockKey(),
-                                            size: 16,
-                                            color:
-                                                Colors.white.withOpacity(.72)),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                    context.l10n
-                                                        .createPrivateCocktail,
-                                                    style: AppType.sans(
-                                                        size: 13.5,
-                                                        weight:
-                                                            FontWeight.w600)),
-                                                const SizedBox(height: 2),
-                                                Text(
-                                                    _createPrivate
-                                                        ? context.l10n
-                                                            .privateCocktailDescription
-                                                        : context.l10n
-                                                            .publicCocktailDescription,
-                                                    style: AppType.sans(
-                                                        size: 11.5,
-                                                        color: Colors.white
-                                                            .withOpacity(.45))),
-                                              ]),
-                                        ),
-                                        Switch.adaptive(
-                                          value: _createPrivate,
-                                          activeThumbColor:
-                                              AppColors.systemAccent,
-                                          onChanged: widget
-                                                      .initialDrink?.status ==
-                                                  CocktailStatus.published
-                                              ? null
-                                              : (value) => setState(
-                                                  () => _createPrivate = value),
-                                        ),
-                                      ]),
+                                                        .withValues(
+                                                            alpha: .45))),
+                                          ]),
                                     ),
-                                    _validation('privacy'),
-                                  ],
-                                ]),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-
-                        // ---- 配方原料 ----
-                        RiseIn(
-                          delay: const Duration(milliseconds: 80),
-                          child: GlassCard(
-                            child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      _itemTitle(context.l10n.ingredients),
-                                      GestureDetector(
-                                        onTap: () => setState(
-                                            () => _rows.add(_IngredientRow())),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 11, vertical: 6),
-                                          decoration: BoxDecoration(
-                                            borderRadius:
-                                                BorderRadius.circular(99),
-                                            color:
-                                                Colors.white.withOpacity(.12),
-                                            border: Border.all(
-                                                color: Colors.white
-                                                    .withOpacity(.28)),
-                                          ),
-                                          child: Text('+ ${context.l10n.add}',
-                                              style: AppType.sans(
-                                                  size: 11.5,
-                                                  weight: FontWeight.w600,
-                                                  height: 1.0)),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 10),
-                                  for (var i = 0; i < _rows.length; i++)
-                                    Padding(
-                                      padding: EdgeInsets.only(
-                                          bottom:
-                                              i == _rows.length - 1 ? 0 : 8),
-                                      child: Row(children: [
-                                        Expanded(
-                                            flex: 16,
-                                            child: _input(_rows[i].name,
-                                                context.l10n.ingredient,
-                                                dense: true)),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                            flex: 10,
-                                            child: _input(_rows[i].amount,
-                                                context.l10n.amount,
-                                                dense: true,
-                                                mono: true,
-                                                suffix: unit)),
-                                        const SizedBox(width: 8),
-                                        GlassCircleButton(
-                                          icon: PhosphorIcons.minus(),
-                                          appleSystemImageName: 'minus',
-                                          size: 34,
-                                          iconSize: 14,
-                                          semanticLabel:
-                                              context.l10n.removeIngredient,
-                                          onTap: () => setState(() {
-                                            _rows[i].dispose();
-                                            _rows.removeAt(i);
-                                            if (_rows.isEmpty) {
-                                              _rows = [_IngredientRow()];
-                                            }
-                                          }),
-                                        ),
-                                      ]),
+                                    Switch.adaptive(
+                                      value: _createPrivate,
+                                      activeThumbColor: AppColors.systemAccent,
+                                      onChanged: widget.initialDrink?.status ==
+                                              CocktailStatus.published
+                                          ? null
+                                          : (value) => setState(
+                                              () => _createPrivate = value),
                                     ),
-                                  _validation('recipe'),
-                                ]),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
+                                  ]),
+                                ),
+                                _validation('privacy'),
+                              ],
+                            ]),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
 
-                        // ---- 调制步骤 ----
-                        RiseIn(
-                          delay: const Duration(milliseconds: 160),
-                          child: GlassCard(
-                            child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _itemTitle(context.l10n.stepsPerLine),
-                                  const SizedBox(height: 10),
-                                  _input(
-                                    _steps,
-                                    context.l10n.stepsHint,
-                                    maxLines: 4,
-                                    keyboardType: TextInputType.multiline,
-                                    textInputAction: TextInputAction.newline,
-                                  ),
-                                  _validation('steps'),
-                                ]),
-                          ),
-                        ),
-                        const SizedBox(height: 18),
-
-                        // ---- 提交 / 草稿按钮 ----
-                        SizedBox(
-                          width: double.infinity,
-                          child: Column(
+                    // ---- 配方原料 ----
+                    RiseIn(
+                      delay: _isEdit
+                          ? Duration.zero
+                          : const Duration(milliseconds: 80),
+                      duration: _isEdit
+                          ? Duration.zero
+                          : const Duration(milliseconds: 550),
+                      child: GlassCard(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              GlassActionButton(
-                                label: context.l10n.createCocktail,
-                                width: double.infinity,
-                                fontSize: 15,
-                                // 使用普通白色 glass，避免系统 prominentGlass 的蓝色强调色。
-                                prominent: false,
-                                onTap: _saving
-                                    ? null
-                                    : () => _save(submitAfterSave: true),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  _itemTitle(context.l10n.ingredients),
+                                  CupertinoButton(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 6),
+                                    onPressed: () => setState(
+                                        () => _rows.add(_IngredientRow())),
+                                    child: Text('+ ${context.l10n.add}',
+                                        style: AppType.sans(
+                                            size: 12.5,
+                                            weight: FontWeight.w600,
+                                            height: 1.0)),
+                                  ),
+                                ],
                               ),
                               const SizedBox(height: 10),
-                              GlassActionButton(
-                                label: _isEdit
-                                    ? context.l10n.saveChanges
-                                    : context.l10n.saveDraft,
-                                width: double.infinity,
-                                fontSize: 13.5,
-                                backgroundColor: const Color(0xFFDDE2E8),
-                                onTap: _saving ? null : _save,
+                              for (var i = 0; i < _rows.length; i++)
+                                Padding(
+                                  padding: EdgeInsets.only(
+                                      bottom: i == _rows.length - 1 ? 0 : 8),
+                                  child: Row(children: [
+                                    Expanded(
+                                        flex: 16,
+                                        child: _input(_rows[i].name,
+                                            context.l10n.ingredient,
+                                            dense: true)),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                        flex: 10,
+                                        child: _input(_rows[i].amount,
+                                            context.l10n.amount,
+                                            dense: true,
+                                            mono: true,
+                                            keyboardType: TextInputType.text,
+                                            suffix: unit)),
+                                    const SizedBox(width: 8),
+                                    GlassCircleButton(
+                                      icon: PhosphorIcons.minus(),
+                                      appleSystemImageName: 'minus',
+                                      size: 34,
+                                      iconSize: 14,
+                                      semanticLabel:
+                                          context.l10n.removeIngredient,
+                                      onTap: () => setState(() {
+                                        _rows[i].dispose();
+                                        _rows.removeAt(i);
+                                        if (_rows.isEmpty) {
+                                          _rows = [_IngredientRow()];
+                                        }
+                                      }),
+                                    ),
+                                  ]),
+                                ),
+                              _validation('recipe'),
+                            ]),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // ---- 调制步骤 ----
+                    RiseIn(
+                      delay: _isEdit
+                          ? Duration.zero
+                          : const Duration(milliseconds: 160),
+                      duration: _isEdit
+                          ? Duration.zero
+                          : const Duration(milliseconds: 550),
+                      child: GlassCard(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _itemTitle(context.l10n.stepsPerLine),
+                              const SizedBox(height: 10),
+                              _input(
+                                _steps,
+                                context.l10n.stepsHint,
+                                maxLines: 4,
+                                keyboardType: TextInputType.multiline,
+                                textInputAction: TextInputAction.newline,
                               ),
-                            ],
+                              _validation('steps'),
+                            ]),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+
+                    // ---- 提交 / 草稿按钮 ----
+                    SizedBox(
+                      width: double.infinity,
+                      child: Column(
+                        children: [
+                          GlassActionButton(
+                            label: context.l10n.createCocktail,
+                            width: double.infinity,
+                            fontSize: 15,
+                            // 使用普通白色 glass，避免系统 prominentGlass 的蓝色强调色。
+                            prominent: false,
+                            onTap: _saving
+                                ? null
+                                : () => _save(submitAfterSave: true),
                           ),
-                        ),
-                      ]),
+                          const SizedBox(height: 10),
+                          GlassActionButton(
+                            label: _isEdit
+                                ? context.l10n.saveChanges
+                                : context.l10n.saveDraft,
+                            width: double.infinity,
+                            fontSize: 13.5,
+                            backgroundColor: const Color(0xFFDDE2E8),
+                            onTap: _saving ? null : _save,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ]),
+            ),
+            if (_saving)
+              Positioned.fill(
+                child: ColoredBox(
+                  color: const Color(0x990D0B10),
+                  child: AppLoadingView(themeColor: _color),
                 ),
               ),
-              if (_saving)
-                Positioned.fill(
-                  child: ColoredBox(
-                    color: const Color(0x990D0B10),
-                    child: AppLoadingView(themeColor: _color),
-                  ),
-                ),
-            ])),
+          ]),
+        ),
       ),
     );
   }
@@ -1073,18 +999,6 @@ class _UploadViewState extends ConsumerState<UploadView> {
         ),
       );
 
-  InputDecoration _decoration(String hint) => InputDecoration(
-        hintText: hint,
-        hintStyle: AppType.sans(
-            size: 14, color: Colors.white.withOpacity(.35), height: 1.4),
-        filled: false,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        border: InputBorder.none,
-        enabledBorder: InputBorder.none,
-        focusedBorder: InputBorder.none,
-      );
-
   Widget _input(TextEditingController c, String hint,
       {bool dense = false,
       bool mono = false,
@@ -1092,67 +1006,55 @@ class _UploadViewState extends ConsumerState<UploadView> {
       int maxLines = 1,
       TextInputType? keyboardType,
       TextInputAction? textInputAction}) {
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    return Focus(
-      child: Builder(
-        builder: (fieldContext) {
-          final focused = Focus.of(fieldContext).hasFocus;
-          return AnimatedContainer(
-            duration: reduceMotion ? Duration.zero : AppMotion.fast,
-            curve: AppMotion.standard,
-            constraints: const BoxConstraints(minHeight: 44),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.white.withValues(alpha: focused ? .18 : .15),
-                  Colors.white.withValues(alpha: focused ? .09 : .07),
-                ],
-              ),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: focused ? .38 : .18),
+    return CupertinoTextField(
+      controller: c,
+      placeholder: hint,
+      maxLines: maxLines,
+      minLines: maxLines > 1 ? maxLines : 1,
+      keyboardType: keyboardType ??
+          (suffix == null
+              ? TextInputType.text
+              : const TextInputType.numberWithOptions(decimal: true)),
+      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+      textInputAction: textInputAction ??
+          (maxLines > 1
+              ? TextInputAction.newline
+              : suffix == null
+                  ? TextInputAction.next
+                  : TextInputAction.done),
+      inputFormatters: suffix == null || keyboardType == TextInputType.text
+          ? null
+          : [
+              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+            ],
+      style: mono
+          ? AppType.mono(size: 13.5, weight: FontWeight.w400)
+          : AppType.sans(
+              size: dense ? 13.5 : 14,
+              height: maxLines > 1 ? 1.6 : 1.2,
+            ),
+      padding: EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: dense ? 10 : 12,
+      ),
+      clearButtonMode: maxLines == 1
+          ? OverlayVisibilityMode.editing
+          : OverlayVisibilityMode.never,
+      suffix: suffix == null
+          ? null
+          : Padding(
+              padding: const EdgeInsetsDirectional.only(end: 12),
+              child: Text(
+                suffix,
+                style: AppType.sans(
+                  size: 12,
+                  color: Colors.white.withValues(alpha: .45),
+                ),
               ),
             ),
-            child: TextField(
-              controller: c,
-              maxLines: maxLines,
-              keyboardType: keyboardType ??
-                  (suffix == null
-                      ? TextInputType.text
-                      : const TextInputType.numberWithOptions(decimal: true)),
-              onTapOutside: (_) =>
-                  FocusManager.instance.primaryFocus?.unfocus(),
-              textInputAction: textInputAction ??
-                  (suffix == null
-                      ? TextInputAction.next
-                      : TextInputAction.done),
-              inputFormatters: suffix == null
-                  ? null
-                  : [
-                      FilteringTextInputFormatter.allow(
-                        RegExp(r'^\d*\.?\d{0,2}'),
-                      ),
-                    ],
-              style: mono
-                  ? AppType.mono(size: 13.5, weight: FontWeight.w400)
-                  : AppType.sans(
-                      size: dense ? 13.5 : 14,
-                      height: maxLines > 1 ? 1.6 : 1.2,
-                    ),
-              decoration: _decoration(hint).copyWith(
-                suffixText: suffix,
-                contentPadding: dense
-                    ? const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      )
-                    : null,
-              ),
-            ),
-          );
-        },
+      decoration: BoxDecoration(
+        color: CupertinoColors.secondarySystemFill.darkColor,
+        borderRadius: BorderRadius.circular(10),
       ),
     );
   }

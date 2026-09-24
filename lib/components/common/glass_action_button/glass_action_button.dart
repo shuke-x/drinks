@@ -34,9 +34,12 @@ class GlassActionButton extends StatelessWidget {
     this.backgroundColor,
     this.gradientColors,
     this.fontSize = 13.5,
+    this.showLabel = true,
+    this.useNative = true,
   })  : assert(width == null || width >= 0),
         assert(height == null || height >= 44),
         assert(fontSize > 0),
+        assert(showLabel || appleSystemImageName != null),
         assert(gradientColors == null || gradientColors.length >= 2);
 
   /// 按钮显示的文案，同时作为原生按钮的默认无障碍语义标签。
@@ -84,6 +87,15 @@ class GlassActionButton extends StatelessWidget {
   /// Button title font size in logical points.
   final double fontSize;
 
+  /// 是否显示可见文案。关闭时 [label] 仍作为无障碍语义标签。
+  ///
+  /// 仅用于搜索等语义明确的紧凑工具栏图标按钮。
+  final bool showLabel;
+
+  /// Use the Flutter renderer when this button is behind a route transition.
+  /// UIKit platform views can otherwise composite above the incoming page.
+  final bool useNative;
+
   @override
   Widget build(BuildContext context) {
     final accent = danger ? AppColors.danger : Colors.white;
@@ -111,6 +123,7 @@ class GlassActionButton extends StatelessWidget {
           height: 1,
         ),
       );
+      if (!showLabel) return iconWidget == null ? const [] : [iconWidget];
       if (iconWidget == null) return [labelWidget];
       return iconOnRight
           ? [labelWidget, const SizedBox(width: 16), iconWidget]
@@ -126,8 +139,8 @@ class GlassActionButton extends StatelessWidget {
             child: Opacity(
               opacity: 0,
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
+                padding: EdgeInsets.symmetric(
+                  horizontal: showLabel ? 20 : 12,
                   vertical: 14,
                 ),
                 child: Row(
@@ -141,7 +154,7 @@ class GlassActionButton extends StatelessWidget {
           Positioned.fill(
             child: AppleLiquidGlassButton(
               onPressed: onTap,
-              label: label,
+              label: showLabel ? label : null,
               systemImageName: appleSystemImageName,
               semanticLabel: label,
               foregroundColor: accent,
@@ -154,50 +167,57 @@ class GlassActionButton extends StatelessWidget {
         ],
       ),
     );
-    final fallback = PressScale(
-      onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(99),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-          child: Container(
-            constraints: BoxConstraints(minHeight: minimumHeight),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(99),
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: gradientColors == null
+    final fallback = Semantics(
+      label: showLabel ? null : label,
+      button: showLabel ? false : true,
+      child: PressScale(
+        onTap: onTap,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(99),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+            child: Container(
+              constraints: BoxConstraints(minHeight: minimumHeight),
+              padding: EdgeInsets.symmetric(
+                horizontal: showLabel ? 20 : 12,
+                vertical: 12,
+              ),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(99),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: gradientColors == null
+                      ? [
+                          surface.withValues(alpha: danger ? .24 : .22),
+                          surface.withValues(alpha: danger ? .12 : .10),
+                        ]
+                      : [
+                          for (var index = 0;
+                              index < gradientColors!.length;
+                              index++)
+                            gradientColors![index].withValues(
+                              alpha: danger ? .28 : (index == 0 ? .72 : .44),
+                            ),
+                        ],
+                ),
+                border: Border.all(
+                  color: surface.withValues(alpha: danger ? .62 : .34),
+                ),
+                boxShadow: danger
                     ? [
-                        surface.withValues(alpha: danger ? .24 : .22),
-                        surface.withValues(alpha: danger ? .12 : .10),
+                        BoxShadow(
+                          color: accent.withValues(alpha: .16),
+                          blurRadius: 24,
+                        ),
                       ]
-                    : [
-                        for (var index = 0;
-                            index < gradientColors!.length;
-                            index++)
-                          gradientColors![index].withValues(
-                            alpha: danger ? .28 : (index == 0 ? .72 : .44),
-                          ),
-                      ],
+                    : null,
               ),
-              border: Border.all(
-                color: surface.withValues(alpha: danger ? .62 : .34),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: contentChildren(color: accent),
               ),
-              boxShadow: danger
-                  ? [
-                      BoxShadow(
-                        color: accent.withValues(alpha: .16),
-                        blurRadius: 24,
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: contentChildren(color: accent),
             ),
           ),
         ),
@@ -206,7 +226,7 @@ class GlassActionButton extends StatelessWidget {
     // Native UIButton.Configuration.glass does not expose a gradient surface.
     // Keep gradient buttons on the Flutter frosted renderer so the visual
     // treatment is identical on iOS and other platforms.
-    if (gradientColors != null) {
+    if (gradientColors != null || !useNative) {
       return SizedBox(width: width, height: height, child: fallback);
     }
     return SizedBox(

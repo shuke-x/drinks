@@ -1,8 +1,7 @@
-import 'dart:typed_data';
-
 import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -16,6 +15,7 @@ import '../../core/network/api_exception.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_typography.dart';
+import '../../core/media/photo_permission.dart';
 import '../../data/apis/api_providers.dart';
 import '../../data/apis/upload_api.dart';
 import '../../stores/settings_store.dart';
@@ -52,24 +52,37 @@ class _ProfileDetailViewState extends ConsumerState<ProfileDetailView> {
   }
 
   Future<void> _pickAvatar() async {
-    final photo = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 512,
-      maxHeight: 512,
-      imageQuality: 82,
-      requestFullMetadata: false,
-    );
-    if (photo == null) return;
-    final bytes = await FlutterImageCompress.compressWithList(
-      await photo.readAsBytes(),
-      minWidth: 512,
-      minHeight: 512,
-      quality: 82,
-      format: CompressFormat.jpeg,
-      keepExif: false,
-    );
-    if (!mounted) return;
-    setState(() => _pendingAvatar = bytes);
+    if (!await ensurePhotoPermission(context)) return;
+    try {
+      final photo = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 82,
+        requestFullMetadata: false,
+      );
+      if (photo == null) return;
+      final bytes = await FlutterImageCompress.compressWithList(
+        await photo.readAsBytes(),
+        minWidth: 512,
+        minHeight: 512,
+        quality: 82,
+        format: CompressFormat.jpeg,
+        keepExif: false,
+      );
+      if (!mounted) return;
+      setState(() => _pendingAvatar = bytes);
+    } on PlatformException catch (error) {
+      if (!mounted) return;
+      final denied = {'photo_access_denied', 'photo_access_restricted'}
+          .contains(error.code);
+      ref.read(toastProvider.notifier).show(denied
+          ? context.l10n.photoAccessDenied
+          : context.l10n.photoReadFailed);
+    } catch (_) {
+      if (!mounted) return;
+      ref.read(toastProvider.notifier).show(context.l10n.photoReadFailed);
+    }
   }
 
   Future<void> _save() async {
@@ -323,12 +336,15 @@ class _ProfileDetailViewState extends ConsumerState<ProfileDetailView> {
                         ),
                       ),
                       const SizedBox(height: 14),
-                      GlassActionButton(
-                        label: context.l10n.logout,
-                        icon: PhosphorIcons.signOut(),
-                        appleSystemImageName:
-                            'rectangle.portrait.and.arrow.right',
-                        onTap: _submitting ? null : _logout,
+                      SizedBox(
+                        width: double.infinity,
+                        child: GlassActionButton(
+                          label: context.l10n.logout,
+                          icon: PhosphorIcons.signOut(),
+                          appleSystemImageName:
+                              'rectangle.portrait.and.arrow.right',
+                          onTap: _submitting ? null : _logout,
+                        ),
                       ),
                       const SizedBox(height: 10),
                       SizedBox(

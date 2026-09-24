@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/painting.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/auth/token_storage.dart';
@@ -13,6 +14,7 @@ import '../models/cocktail.dart';
 import 'cocktail_store.dart';
 import 'my_cocktails_store.dart';
 import 'settings_store.dart';
+import 'locale_store.dart';
 
 class UserState {
   const UserState({
@@ -181,18 +183,18 @@ class UserNotifier extends StateNotifier<UserState> {
   }
 
   Future<void> synchronizeRemote() async {
-    final values = await Future.wait<dynamic>([
-      _userApi.me(),
-      _userApi.favoriteIds(),
-      _userApi.myCocktails(),
-    ]);
-    final profile = values[0] as UserProfile;
-    final favoriteIds = values[1] as Set<String>;
-    final cocktails = values[2] as List<Cocktail>;
+    final profile = await _userApi.me();
     final prefs = await SharedPreferences.getInstance();
     final hasLocalLanguage = prefs.containsKey(_languageKey);
     final effectiveLanguage =
         hasLocalLanguage ? state.language : profile.language;
+    final lang = resolveAppLanguage(effectiveLanguage);
+    final values = await Future.wait<dynamic>([
+      _userApi.favoriteIds(lang: lang),
+      _userApi.myCocktails(lang: lang),
+    ]);
+    final favoriteIds = values[0] as Set<String>;
+    final cocktails = values[1] as List<Cocktail>;
     state = state.copyWith(
       ready: true,
       isLoggedIn: true,
@@ -314,6 +316,8 @@ class UserNotifier extends StateNotifier<UserState> {
     await prefs.remove(_key);
     _appData.clear();
     _resetSessionCaches();
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
     state = UserState(
       ready: true,
       language: prefs.getString(_languageKey),
@@ -329,7 +333,8 @@ class UserNotifier extends StateNotifier<UserState> {
   }
 }
 
-final userProvider = StateNotifierProvider<UserNotifier, UserState>((ref) {
+final StateNotifierProvider<UserNotifier, UserState> userProvider =
+    StateNotifierProvider<UserNotifier, UserState>((ref) {
   return UserNotifier(
     ref.watch(authApiProvider),
     ref.watch(userApiProvider),

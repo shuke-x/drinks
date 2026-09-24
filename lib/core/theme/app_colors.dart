@@ -10,20 +10,21 @@ class AppColors {
 
   // ---- 文字 ----
   static const Color textPrimary = Color(0xFFFFFFFF);
-  static Color textSecondary = const Color(0xFFFFFFFF).withOpacity(.62);
-  static Color text45 = const Color(0xFFFFFFFF).withOpacity(.45);
-  static Color text50 = const Color(0xFFFFFFFF).withOpacity(.50);
-  static Color text42 = const Color(0xFFFFFFFF).withOpacity(.42);
+  static Color textSecondary = const Color(0xFFFFFFFF).withValues(alpha: .62);
+  static Color text45 = const Color(0xFFFFFFFF).withValues(alpha: .45);
+  static Color text50 = const Color(0xFFFFFFFF).withValues(alpha: .50);
+  static Color text42 = const Color(0xFFFFFFFF).withValues(alpha: .42);
 
   // ---- 毛玻璃表面（原型内联值）----
-  static Color glassFill08 = const Color(0xFFFFFFFF).withOpacity(.08);
-  static Color glassFill09 = const Color(0xFFFFFFFF).withOpacity(.09);
-  static Color glassFill10 = const Color(0xFFFFFFFF).withOpacity(.10);
-  static Color glassFill11 = const Color(0xFFFFFFFF).withOpacity(.11);
-  static Color glassBorder = const Color(0xFFFFFFFF).withOpacity(.15);
-  static Color glassBorder12 = const Color(0xFFFFFFFF).withOpacity(.12);
-  static Color glassBorderStrong = const Color(0xFFFFFFFF).withOpacity(.20);
-  static Color hairline = const Color(0xFFFFFFFF).withOpacity(.08);
+  static Color glassFill08 = const Color(0xFFFFFFFF).withValues(alpha: .08);
+  static Color glassFill09 = const Color(0xFFFFFFFF).withValues(alpha: .09);
+  static Color glassFill10 = const Color(0xFFFFFFFF).withValues(alpha: .10);
+  static Color glassFill11 = const Color(0xFFFFFFFF).withValues(alpha: .11);
+  static Color glassBorder = const Color(0xFFFFFFFF).withValues(alpha: .15);
+  static Color glassBorder12 = const Color(0xFFFFFFFF).withValues(alpha: .12);
+  static Color glassBorderStrong =
+      const Color(0xFFFFFFFF).withValues(alpha: .20);
+  static Color hairline = const Color(0xFFFFFFFF).withValues(alpha: .08);
 
   // ---- 语义色（tokens/colors.css）----
   static const Color danger = Color(0xFFFF453A);

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -23,6 +24,21 @@ class AppleLiquidGlassTabItem {
         'systemImageName': systemImageName,
         'selectedSystemImageName': selectedSystemImageName,
       };
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AppleLiquidGlassTabItem &&
+          label == other.label &&
+          systemImageName == other.systemImageName &&
+          selectedSystemImageName == other.selectedSystemImageName;
+
+  @override
+  int get hashCode => Object.hash(
+        label,
+        systemImageName,
+        selectedSystemImageName,
+      );
 }
 
 class AppleLiquidGlassTabBar extends StatefulWidget {
@@ -50,6 +66,8 @@ class AppleLiquidGlassTabBar extends StatefulWidget {
 }
 
 class _AppleLiquidGlassTabBarState extends State<AppleLiquidGlassTabBar> {
+  // Flutter 与 ios/Runner/AppDelegate.swift 中 UIKit TabBar 的通信通道。
+  // 一般不在本文件改视觉样式；这里负责把项目内容和当前下标传给 iOS。
   MethodChannel? _channel;
 
   Map<String, Object> get _configuration => <String, Object>{
@@ -61,7 +79,7 @@ class _AppleLiquidGlassTabBarState extends State<AppleLiquidGlassTabBar> {
   void didUpdateWidget(covariant AppleLiquidGlassTabBar oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.currentIndex != widget.currentIndex ||
-        oldWidget.items != widget.items) {
+        !listEquals(oldWidget.items, widget.items)) {
       _channel?.invokeMethod<void>('update', _configuration);
     }
   }

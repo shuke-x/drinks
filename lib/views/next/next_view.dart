@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../components/glass.dart';
+import '../../components/deck_card_list.dart';
 import '../../components/app_loading_view.dart';
 import '../../components/app_empty_view.dart';
 import '../../components/palette.dart';
@@ -17,7 +18,6 @@ import '../../stores/deck_store.dart';
 import '../../stores/user_store.dart';
 import '../../stores/settings_store.dart';
 import '../../l10n/l10n.dart';
-import 'widgets/deck_card.dart';
 import 'widgets/result_sheet.dart';
 
 /// Next 页 —— 抽签选酒。
@@ -131,37 +131,57 @@ class _NextViewState extends ConsumerState<NextView>
           padding: const EdgeInsets.fromLTRB(
               AppSpacing.gutter, 0, AppSpacing.gutter, 16),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('TONIGHT',
-                    style: AppType.eyebrow(
-                        size: 11,
-                        tracking: .18,
-                        color: Colors.white.withOpacity(.42))),
-                const SizedBox(height: 7),
-                Text(context.l10n.todayDrink,
-                    style: AppType.serifZh(size: 24, height: 1.2)),
-              ]),
-              GlassCircleButton(
-                key: const ValueKey('create_cocktail'),
-                icon: PhosphorIcons.plus(PhosphorIconsStyle.bold),
-                appleSystemImageName: 'plus',
-                size: 44,
-                iconSize: 18,
-                iconColor: Colors.white,
-                semanticLabel: context.l10n.uploadCocktail,
-                onTap: () {
-                  if (!ref.read(userProvider).isLoggedIn) {
-                    ref
-                        .read(toastProvider.notifier)
-                        .show(context.l10n.loginToCreate);
-                    context.push('/login');
-                    return;
-                  }
-                  context.push('/upload');
-                },
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('TONIGHT',
+                        style: AppType.eyebrow(
+                            size: 11,
+                            tracking: .18,
+                            color: Colors.white.withValues(alpha: .42))),
+                    const SizedBox(height: 7),
+                    Text(
+                      context.l10n.todayDrink,
+                      key: const ValueKey('next_page_title'),
+                      style: AppType.serifZh(size: 24, height: 1.2),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 12),
+              Row(children: [
+                GlassCircleButton(
+                  icon: PhosphorIcons.sparkle(),
+                  appleSystemImageName: 'sparkles',
+                  size: 44,
+                  iconSize: 18,
+                  semanticLabel: '风味推荐',
+                  onTap: () => context.go('/recommend'),
+                ),
+                const SizedBox(width: 8),
+                GlassCircleButton(
+                  key: const ValueKey('create_cocktail'),
+                  icon: PhosphorIcons.plus(PhosphorIconsStyle.bold),
+                  appleSystemImageName: 'plus',
+                  size: 44,
+                  iconSize: 18,
+                  iconColor: Colors.white,
+                  semanticLabel: context.l10n.uploadCocktail,
+                  onTap: () {
+                    if (!ref.read(userProvider).isLoggedIn) {
+                      ref
+                          .read(toastProvider.notifier)
+                          .show(context.l10n.loginToCreate);
+                      context.push('/login');
+                      return;
+                    }
+                    context.push('/upload');
+                  },
+                ),
+              ]),
             ],
           ),
         ),
@@ -190,11 +210,13 @@ class _NextViewState extends ConsumerState<NextView>
                         onHorizontalDragCancel: () =>
                             deck.onDragEnd(0, _reduceMotion),
                         child: ClipRect(
+                          key: const ValueKey('next_deck_viewport'),
                           child: LayoutBuilder(builder: (context, box) {
-                            return _DeckStack(
-                              list: list,
+                            return DeckCardList(
+                              drinks: list,
                               deck: deck,
                               width: box.maxWidth,
+                              height: box.maxHeight,
                               onOpen: (drink) {
                                 if (deck.suppressClick || deck.spinning) {
                                   return;
@@ -212,7 +234,9 @@ class _NextViewState extends ConsumerState<NextView>
           child: Text(
             context.l10n.swipeHint,
             style: AppType.sans(
-                size: 12, color: Colors.white.withOpacity(.42), height: 1.4),
+                size: 12,
+                color: Colors.white.withValues(alpha: .42),
+                height: 1.4),
           ),
         ),
       ]),
@@ -245,59 +269,4 @@ class _NextViewState extends ConsumerState<NextView>
       ),
     ]);
   }
-}
-
-/// 弧形卡组渲染：只保留当前卡及左右两个预备槽位，远卡先画。
-class _DeckStack extends StatelessWidget {
-  const _DeckStack({
-    required this.list,
-    required this.deck,
-    required this.width,
-    required this.onOpen,
-  });
-
-  final List<Cocktail> list;
-  final DeckController deck;
-  final double width;
-  final ValueChanged<Cocktail> onOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    if (list.isEmpty) return const SizedBox.expand();
-
-    final len = list.length;
-    final base = deck.pos.round();
-    final slots = <_Slot>[];
-    for (var k = -2; k <= 2; k++) {
-      final slot = base + k;
-      final d = list[((slot % len) + len) % len];
-      final t = slot - deck.pos;
-      slots.add(_Slot(drink: d, t: t, key: 's$k'));
-    }
-    // 按距离降序绘制：近的卡后画（在最上层）
-    slots.sort((a, b) => b.t.abs().compareTo(a.t.abs()));
-
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        for (final s in slots)
-          DeckCardTransform(
-            key: ValueKey(s.key),
-            drink: s.drink,
-            t: s.t,
-            stageWidth: width,
-            landed: deck.landedId == s.drink.id && s.t.abs() < 0.4,
-            engaged: deck.dragging && s.t.abs() < .5,
-            onTap: () => onOpen(s.drink),
-          ),
-      ],
-    );
-  }
-}
-
-class _Slot {
-  final Cocktail drink;
-  final double t;
-  final String key;
-  const _Slot({required this.drink, required this.t, required this.key});
 }

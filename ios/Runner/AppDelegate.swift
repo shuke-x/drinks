@@ -72,12 +72,71 @@ private final class AppleLiquidGlassTabBarFactory: NSObject, FlutterPlatformView
   }
 }
 
+private final class DividedItemTabBar: UITabBar {
+  // 【iOS 原生选中块样式】选中块铺满单个 item；圆角、颜色和描边在
+  // updateSelectionIndicator() 的 UIColor / lineWidth 中修改。
+  private let itemVerticalInset: CGFloat = 6
+  private let itemCornerRadius: CGFloat = 10
+  private var indicatorSize: CGSize = .zero
+
+  override func layoutSubviews() {
+    super.layoutSubviews()
+    updateSelectionIndicator()
+  }
+
+  private func updateSelectionIndicator() {
+    guard let itemCount = items?.count, itemCount > 0, bounds.width > 0 else {
+      return
+    }
+    let itemWidth = bounds.width / CGFloat(itemCount)
+    let size = CGSize(
+      width: max(1, itemWidth),
+      height: max(1, bounds.height - itemVerticalInset * 2)
+    )
+    guard size != indicatorSize else { return }
+
+    let format = UIGraphicsImageRendererFormat.default()
+    format.opaque = false
+    let indicator = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+      let rect = CGRect(origin: .zero, size: size).insetBy(dx: 0.5, dy: 0.5)
+      let path = UIBezierPath(
+        roundedRect: rect,
+        cornerRadius: min(itemCornerRadius, rect.height / 2)
+      )
+      UIColor.white.withAlphaComponent(0.18).setFill()
+      path.fill()
+      UIColor.white.withAlphaComponent(0.38).setStroke()
+      path.lineWidth = 1
+      path.stroke()
+    }
+
+    indicatorSize = size
+    selectionIndicatorImage = indicator
+
+    let standard = standardAppearance.copy() as! UITabBarAppearance
+    standard.selectionIndicatorImage = indicator
+    standard.selectionIndicatorTintColor = .clear
+    standardAppearance = standard
+
+    if #available(iOS 15.0, *) {
+      let scrollEdge = (scrollEdgeAppearance ?? standardAppearance).copy()
+        as! UITabBarAppearance
+      scrollEdge.selectionIndicatorImage = indicator
+      scrollEdge.selectionIndicatorTintColor = .clear
+      scrollEdgeAppearance = scrollEdge
+    }
+  }
+}
+
 private final class AppleLiquidGlassTabBarPlatformView: NSObject,
   FlutterPlatformView, UITabBarDelegate
 {
   private let tabBar: UITabBar
   private let channel: FlutterMethodChannel
   private var configuration: [String: Any]
+  private var itemSignatures: [String] = []
+  private let itemIconPointSize: CGFloat = 15
+  private let itemContentGap: CGFloat = 4
 
   init(
     frame: CGRect,
@@ -85,7 +144,7 @@ private final class AppleLiquidGlassTabBarPlatformView: NSObject,
     arguments args: Any?,
     messenger: FlutterBinaryMessenger
   ) {
-    tabBar = UITabBar(frame: frame)
+    tabBar = DividedItemTabBar(frame: frame)
     configuration = args as? [String: Any] ?? [:]
     channel = FlutterMethodChannel(
       name: "tonight_drinks/apple_liquid_glass_tab_bar/\(viewId)",
@@ -93,6 +152,8 @@ private final class AppleLiquidGlassTabBarPlatformView: NSObject,
     )
     super.init()
 
+    // 【iOS 原生 TabBar 样式】选中/未选中图标与文字颜色在这里改。
+    // 系统 Liquid Glass 的底层材质由 UITabBar 提供，不要用 Flutter blur 覆盖。
     tabBar.delegate = self
     tabBar.autoresizingMask = [.flexibleWidth, .flexibleHeight]
     tabBar.itemPositioning = .fill
@@ -117,25 +178,53 @@ private final class AppleLiquidGlassTabBarPlatformView: NSObject,
 
   func tabBar(_ tabBar: UITabBar, didSelect item: UITabBarItem) {
     guard let index = tabBar.items?.firstIndex(of: item) else { return }
+    configuration["currentIndex"] = index
     channel.invokeMethod("select", arguments: index)
   }
 
   private func applyConfiguration() {
+    // 【iOS 原生 Tab 内容】实际文案和 SF Symbol 名称来自
+    // lib/components/common/glass_tab_bar/glass_tab_bar.dart 的 _items。
     let rawItems = configuration["items"] as? [[String: Any]] ?? []
-    let items = rawItems.map { value in
-      let image = (value["systemImageName"] as? String)
-        .flatMap { UIImage(systemName: $0) }
-      let selectedImage = (value["selectedSystemImageName"] as? String)
-        .flatMap { UIImage(systemName: $0) }
-      return UITabBarItem(
-        title: value["label"] as? String,
-        image: image,
-        selectedImage: selectedImage
-      )
+    let nextSignatures = rawItems.map { value in
+      [
+        value["label"] as? String ?? "",
+        value["systemImageName"] as? String ?? "",
+        value["selectedSystemImageName"] as? String ?? "",
+      ].joined(separator: "\u{1F}")
     }
-    tabBar.items = items
+    if itemSignatures != nextSignatures {
+      tabBar.items = rawItems.map { value in
+        let symbolConfiguration = UIImage.SymbolConfiguration(
+          pointSize: itemIconPointSize,
+          weight: .regular
+        )
+        let image = (value["systemImageName"] as? String)
+          .flatMap { UIImage(systemName: $0, withConfiguration: symbolConfiguration) }
+        let selectedImage = (value["selectedSystemImageName"] as? String)
+          .flatMap { UIImage(systemName: $0, withConfiguration: symbolConfiguration) }
+        let item = UITabBarItem(
+          title: value["label"] as? String,
+          image: image,
+          selectedImage: selectedImage
+        )
+        // UIKit 负责原生上下排版；图标和标题各移动一半间距，形成 4pt 间隔。
+        let halfGap = itemContentGap / 2
+        item.imageInsets = UIEdgeInsets(
+          top: -halfGap,
+          left: 0,
+          bottom: halfGap,
+          right: 0
+        )
+        item.titlePositionAdjustment = UIOffset(horizontal: 0, vertical: halfGap)
+        return item
+      }
+      itemSignatures = nextSignatures
+    }
+
+    guard let items = tabBar.items else { return }
     let selectedIndex = (configuration["currentIndex"] as? NSNumber)?.intValue ?? 0
-    if items.indices.contains(selectedIndex) {
+    if items.indices.contains(selectedIndex), tabBar.selectedItem !== items[selectedIndex] {
       tabBar.selectedItem = items[selectedIndex]
     }
   }

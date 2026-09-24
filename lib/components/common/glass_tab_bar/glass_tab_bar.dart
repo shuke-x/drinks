@@ -11,6 +11,7 @@ import '../apple_liquid_glass_button/apple_liquid_glass_button.dart';
 import '../apple_liquid_glass_tab_bar/apple_liquid_glass_tab_bar.dart';
 
 class _TabItem {
+  // 单个 Tab 的内容模型：Flutter 图标与 iOS 原生 SF Symbol 都在这里声明。
   final String label;
   final PhosphorIconData icon;
   final PhosphorIconData iconFill;
@@ -38,6 +39,7 @@ class GlassTabBar extends StatefulWidget {
     required this.onSelect,
     this.width,
     this.height = 56,
+    this.showCocktails = true,
   })  : assert(width == null || width >= 0),
         assert(height >= 44);
 
@@ -53,14 +55,26 @@ class GlassTabBar extends StatefulWidget {
   /// TabBar 高度，默认 56pt，且不能小于 iOS 44pt 点击目标。
   final double height;
 
+  /// 是否显示配方目标。主导航在登录前后均显示，保留参数兼容独立预览。
+  final bool showCocktails;
+
   @override
   State<GlassTabBar> createState() => _GlassTabBarState();
 }
 
 class _GlassTabBarState extends State<GlassTabBar> {
+  // 【选中块样式】圆角；填充、描边、阴影在 build 中的
+  // ValueKey('tab_selection_indicator') 对应 BoxDecoration 里修改。
+  static const double _selectionRadius = 10;
+  static const double _itemIconSize = 14;
+  static const double _itemContentGap = 6;
+
   int? _pressedIndex;
   bool _longPressed = false;
 
+  // 【Tab 内容】在这里修改项目顺序、文案和图标。
+  // label 来自 lib/l10n/*.arb；icon 用于 Flutter；appleIcon 用于 iOS 原生版本。
+  // 项目顺序必须与 AppShell 中的 *_TabLocations 路由数组保持一致。
   List<_TabItem> _items(BuildContext context) => [
         _TabItem(
           label: context.l10n.home,
@@ -70,19 +84,20 @@ class _GlassTabBarState extends State<GlassTabBar> {
           appleIconFill: 'house.fill',
         ),
         _TabItem(
-          label: context.l10n.next,
-          icon: PhosphorIcons.sparkle(),
-          iconFill: PhosphorIcons.sparkle(PhosphorIconsStyle.fill),
-          appleIcon: 'sparkles',
-          appleIconFill: 'sparkles',
+          label: context.l10n.recommend,
+          icon: PhosphorIcons.circlesThreePlus(),
+          iconFill: PhosphorIcons.circlesThreePlus(PhosphorIconsStyle.fill),
+          appleIcon: 'circle.hexagongrid',
+          appleIconFill: 'circle.hexagongrid.fill',
         ),
-        _TabItem(
-          label: context.l10n.cocktails,
-          icon: PhosphorIcons.wine(),
-          iconFill: PhosphorIcons.wine(PhosphorIconsStyle.fill),
-          appleIcon: 'wineglass',
-          appleIconFill: 'wineglass.fill',
-        ),
+        if (widget.showCocktails)
+          _TabItem(
+            label: context.l10n.recipes,
+            icon: PhosphorIcons.bookOpen(),
+            iconFill: PhosphorIcons.bookOpen(PhosphorIconsStyle.fill),
+            appleIcon: 'list.bullet.rectangle',
+            appleIconFill: 'list.bullet.rectangle.fill',
+          ),
         _TabItem(
           label: context.l10n.user,
           icon: PhosphorIcons.userCircle(),
@@ -98,6 +113,7 @@ class _GlassTabBarState extends State<GlassTabBar> {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     final highContrast = MediaQuery.highContrastOf(context);
 
+    // 【TabBar 外壳样式 / CSS 对应区】背景色、外描边、圆角和投影在这里改。
     final contents = DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(99),
@@ -121,17 +137,19 @@ class _GlassTabBarState extends State<GlassTabBar> {
         builder: (context, constraints) {
           final segmentWidth = constraints.maxWidth / items.length;
           final selectedIndex = widget.current.clamp(0, items.length - 1);
+          final selectionLeft = segmentWidth * selectedIndex;
           return SizedBox(
             height: widget.height,
             child: Stack(
               children: [
+                // 【选中项样式】移动动画、选中块背景、描边与阴影。
                 AnimatedPositioned(
                   duration: reduceMotion ? Duration.zero : AppMotion.base,
                   curve: reduceMotion ? Curves.linear : AppMotion.standard,
-                  left: segmentWidth * selectedIndex + 3,
+                  left: selectionLeft,
                   top: 6,
                   bottom: 6,
-                  width: segmentWidth - 6,
+                  width: segmentWidth,
                   child: IgnorePointer(
                     child: AnimatedScale(
                       duration: reduceMotion ? Duration.zero : AppMotion.fast,
@@ -140,8 +158,9 @@ class _GlassTabBarState extends State<GlassTabBar> {
                           ? (_longPressed ? .91 : .965)
                           : 1,
                       child: DecoratedBox(
+                        key: const ValueKey('tab_selection_indicator'),
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(99),
+                          borderRadius: BorderRadius.circular(_selectionRadius),
                           gradient: highContrast
                               ? null
                               : LinearGradient(
@@ -177,6 +196,7 @@ class _GlassTabBarState extends State<GlassTabBar> {
                     ),
                   ),
                 ),
+                // 【图标和文字样式】未选中透明度、字号、图标尺寸与排列方式。
                 Positioned.fill(
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -188,6 +208,27 @@ class _GlassTabBarState extends State<GlassTabBar> {
                           : Colors.white.withValues(
                               alpha: highContrast ? .76 : .55,
                             );
+                      final icon = AnimatedSwitcher(
+                        duration: reduceMotion ? Duration.zero : AppMotion.fast,
+                        child: Icon(
+                          active ? item.iconFill : item.icon,
+                          key: ValueKey(active),
+                          size: _itemIconSize,
+                          color: foreground,
+                        ),
+                      );
+                      final label = Text(
+                        item.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.fade,
+                        softWrap: false,
+                        style: AppType.sans(
+                          size: 10.5,
+                          weight: FontWeight.w600,
+                          color: foreground,
+                          height: 1,
+                        ),
+                      );
                       return Expanded(
                         child: Semantics(
                           button: true,
@@ -235,37 +276,13 @@ class _GlassTabBarState extends State<GlassTabBar> {
                                   : 1,
                               child: Padding(
                                 padding:
-                                    const EdgeInsets.symmetric(horizontal: 6),
-                                child: Row(
+                                    const EdgeInsets.symmetric(horizontal: 2),
+                                child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
-                                    AnimatedSwitcher(
-                                      duration: reduceMotion
-                                          ? Duration.zero
-                                          : AppMotion.fast,
-                                      child: Icon(
-                                        active ? item.iconFill : item.icon,
-                                        key: ValueKey(active),
-                                        size: 17,
-                                        color: foreground,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 5),
-                                    Flexible(
-                                      child: Text(
-                                        item.label,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.fade,
-                                        softWrap: false,
-                                        style: AppType.sans(
-                                          size: 12.5,
-                                          weight: FontWeight.w600,
-                                          color: foreground,
-                                          height: 1,
-                                        ),
-                                      ),
-                                    ),
+                                    icon,
+                                    const SizedBox(height: _itemContentGap),
+                                    label,
                                   ],
                                 ),
                               ),
@@ -283,6 +300,7 @@ class _GlassTabBarState extends State<GlassTabBar> {
       ),
     );
 
+    // 【毛玻璃强度】非原生回退版本的 blur 数值在 ImageFilter.blur 中修改。
     final fallback = ClipRRect(
       borderRadius: BorderRadius.circular(99),
       child: highContrast
@@ -295,6 +313,8 @@ class _GlassTabBarState extends State<GlassTabBar> {
     return SizedBox(
       width: widget.width,
       height: widget.height,
+      // iOS 支持原生 Liquid Glass 时显示 UIKit 版本；其他环境显示上面的 fallback。
+      // 因此 iOS 真机上的系统材质/颜色还要去 ios/Runner/AppDelegate.swift 修改。
       child: AppleLiquidGlassSwitcher(
         fallback: fallback,
         nativeBuilder: (_) => AppleLiquidGlassTabBar(

@@ -25,7 +25,7 @@ class WaterfallCard extends StatelessWidget {
     final c = drink.themeColor;
     final languageCode = Localizations.localeOf(context).languageCode;
     final primaryName = drink.nameFor(languageCode);
-    final alternateName = drink.alternateNameFor(languageCode);
+    final resolvedCoverHeight = coverHeight < 220 ? 220.0 : coverHeight;
     return RepaintBoundary(
       child: PressScale(
         onTap: onTap,
@@ -34,7 +34,7 @@ class WaterfallCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(22),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(.4),
+                color: Colors.black.withValues(alpha: .4),
                 blurRadius: 34,
                 offset: const Offset(0, 14),
               ),
@@ -44,23 +44,26 @@ class WaterfallCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(22),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(.08),
+                color: Colors.white.withValues(alpha: .08),
                 borderRadius: BorderRadius.circular(22),
               ),
               // 前景描边最后绘制，封面图片不会再压住卡片边缘。
               foregroundDecoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: Colors.white.withOpacity(.15)),
+                border: Border.all(color: Colors.white.withValues(alpha: .15)),
               ),
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // 封面
                     SizedBox(
-                      height: coverHeight,
+                      height: resolvedCoverHeight,
                       width: double.infinity,
                       child: Stack(children: [
-                        CocktailCover(drink: drink),
+                        ClipRect(
+                          child: CocktailCover(
+                              drink: drink, fit: BoxFit.cover),
+                        ),
                         if (drink.images.isEmpty)
                           Center(
                             child: Container(
@@ -72,6 +75,27 @@ class WaterfallCard extends StatelessWidget {
                               ),
                             ),
                           ),
+                        // 图片与下方文案之间用一层短渐变过渡，避免硬切。
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          height: 72,
+                          child: IgnorePointer(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.black.withValues(alpha: 0),
+                                    Colors.black.withValues(alpha: .18),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                         Positioned(
                           right: 9,
                           top: 9,
@@ -79,8 +103,8 @@ class WaterfallCard extends StatelessWidget {
                             label: '${drink.abv}%',
                             mono: true,
                             fontSize: 10,
-                            fill: Colors.black.withOpacity(.32),
-                            borderColor: Colors.white.withOpacity(.18),
+                            fill: Colors.black.withValues(alpha: .32),
+                            borderColor: Colors.white.withValues(alpha: .18),
                             textColor: Colors.white,
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 5),
@@ -98,27 +122,9 @@ class WaterfallCard extends StatelessWidget {
                               primaryName,
                               style: languageCode == 'en'
                                   ? AppType.cocktailEnglish(
-                                      size: 17, height: 1.2)
+                                      size: 15, height: 1.2)
                                   : AppType.serifZh(size: 16, height: 1.25),
                             ),
-                            if (alternateName != null) ...[
-                              const SizedBox(height: 3),
-                              Text(
-                                alternateName,
-                                style: languageCode == 'en'
-                                    ? AppType.serifZh(
-                                        size: 11.5,
-                                        weight: FontWeight.w500,
-                                        color: Colors.white.withOpacity(.5),
-                                        height: 1.3,
-                                      )
-                                    : AppType.cocktailEnglish(
-                                        size: 11.5,
-                                        color: Colors.white.withOpacity(.5),
-                                        height: 1.3,
-                                      ),
-                              ),
-                            ],
                             const SizedBox(height: 10),
                             Wrap(
                               spacing: 5,
@@ -128,9 +134,11 @@ class WaterfallCard extends StatelessWidget {
                                   InfoPill(
                                     label: tip,
                                     fontSize: 10.5,
-                                    fill: Colors.white.withOpacity(.1),
-                                    borderColor: Colors.white.withOpacity(.15),
-                                    textColor: Colors.white.withOpacity(.8),
+                                    fill: Colors.white.withValues(alpha: .1),
+                                    borderColor:
+                                        Colors.white.withValues(alpha: .15),
+                                    textColor:
+                                        Colors.white.withValues(alpha: .8),
                                   ),
                               ],
                             ),

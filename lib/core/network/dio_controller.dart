@@ -13,6 +13,22 @@ class DioController {
 
   final Dio _dio;
 
+  /// Allows account-bound requests to retain their initiating identity through retries.
+  Future<T> send<T>(
+    String method,
+    String path, {
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? queryParameters,
+    Object? data,
+    required T Function(dynamic data) decoder,
+  }) =>
+      _request(
+          _dio.request(path,
+              data: data,
+              queryParameters: queryParameters,
+              options: Options(method: method, headers: headers)),
+          decoder);
+
   Future<T> get<T>(
     String path, {
     Map<String, dynamic>? queryParameters,
